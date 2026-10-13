@@ -1,0 +1,22 @@
+# Build output
+backend/target/
+
+# Runtime files
+logs/
+*.log
+*.pid
+
+# IntelliJ IDEA
+.idea/
+*.iml
+
+# VS Code
+.vscode/
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# Local environment overrides
+.env
+application-local.yml

@@ -1,0 +1,4 @@
+<!DOCTYPE html><html lang="zh-CN" xmlns:th="http://www.thymeleaf.org"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>登录 - EMS</title><link rel="stylesheet" href="/css/app.css"></head>
+<body class="auth-page"><main class="auth-card"><div class="logo">EMS</div><h1>员工管理系统</h1><p class="muted">使用工号和密码登录</p><div th:replace="~{fragments :: messages}"></div>
+<form method="post" action="/login"><label>工号<input name="employeeNo" th:value="${employeeNo}" placeholder="例如 260001" required></label><label>密码<input type="password" name="password" placeholder="请输入密码" required></label><button class="primary wide">登录</button></form>
+<p class="center"><a href="/register">已被招聘？完成员工注册</a></p><div class="demo"><b>演示账号</b><span>高层：260001 / Admin123</span><span>经理：260002 / Manager123</span><span>员工：260005 / Employee123</span></div></main></body></html>
