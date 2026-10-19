@@ -1,127 +1,69 @@
-$ErrorActionPreference = "Stop"
-$projectDir = Split-Path -Parent $PSScriptRoot
-$backendDir = Join-Path $projectDir "backend"
-$logDir = Join-Path $projectDir "logs"
-$pidFile = Join-Path $logDir "ems.pid"
-$launcherLog = Join-Path $logDir "launcher.log"
-$appLog = Join-Path $logDir "application.log"
-$appErrorLog = Join-Path $logDir "application-error.log"
-New-Item -ItemType Directory -Path $logDir -Force | Out-Null
-
-function Write-LauncherLog([string]$message) {
-    $line = "{0} {1}" -f (Get-Date -Format "yyyy-MM-dd HH:mm:ss"), $message
-    $line | Tee-Object -FilePath $launcherLog -Append
-}
-
-function Test-Port([int]$port) {
-    try {
-        $client = New-Object System.Net.Sockets.TcpClient
-        $async = $client.BeginConnect("127.0.0.1", $port, $null, $null)
-        $ok = $async.AsyncWaitHandle.WaitOne(500)
-        if ($ok -and $client.Connected) {
-            $client.EndConnect($async)
-            $client.Close()
-            return $true
-        }
-        $client.Close()
-    } catch { }
-    return $false
-}
-
-if (Test-Port 8080) {
-    Write-LauncherLog "Port 8080 is already active. Opening the web page."
-    Start-Process "http://localhost:8080"
-    exit 0
-}
-
-$maven = Get-Command mvn.cmd -ErrorAction SilentlyContinue
-if (-not $maven) { $maven = Get-Command mvn -ErrorAction SilentlyContinue }
-
-if (-not $maven) {
-    $ideaRoots = @(
-        "$env:ProgramFiles\JetBrains",
-        "$env:LOCALAPPDATA\Programs\IntelliJ IDEA Ultimate",
-        "$env:LOCALAPPDATA\Programs\IntelliJ IDEA Community Edition",
-        "$env:LOCALAPPDATA\JetBrains\Toolbox\apps"
-    ) | Where-Object { $_ -and (Test-Path $_) }
-
-    foreach ($root in $ideaRoots) {
-        $candidate = Get-ChildItem -Path $root -Filter "mvn.cmd" -Recurse -ErrorAction SilentlyContinue |
-            Where-Object { $_.FullName -match "plugins[\\/]maven[\\/]lib[\\/]maven3[\\/]bin[\\/]mvn.cmd$" } |
-            Select-Object -First 1
-        if ($candidate) { $maven = $candidate; break }
-    }
-}
-
-if (-not $maven) {
-    Write-LauncherLog "Maven was not found. Install Maven or keep IntelliJ IDEA installed."
-    Write-Host "Maven was not found." -ForegroundColor Red
-    Write-Host "Install Maven or keep IntelliJ IDEA installed, then try again."
-    exit 1
-}
-
-$java = Get-Command java.exe -ErrorAction SilentlyContinue
-if (-not $java) { $java = Get-Command java -ErrorAction SilentlyContinue }
-if (-not $java) {
-    $javaRoots = @(
-        "$env:ProgramFiles\Java",
-        "$env:ProgramFiles\Microsoft",
-        "$env:ProgramFiles\Eclipse Adoptium",
-        "$env:ProgramFiles\JetBrains",
-        "$env:LOCALAPPDATA\Programs",
-        "$env:LOCALAPPDATA\JetBrains\Toolbox\apps"
-    ) | Where-Object { $_ -and (Test-Path $_) }
-    foreach ($root in $javaRoots) {
-        $candidate = Get-ChildItem -Path $root -Filter "java.exe" -Recurse -ErrorAction SilentlyContinue |
-            Where-Object { $_.FullName -match "[\\/]bin[\\/]java.exe$" } |
-            Select-Object -First 1
-        if ($candidate) { $java = $candidate; break }
-    }
-}
-if (-not $java) {
-    Write-LauncherLog "Java was not found."
-    Write-Host "Java was not found. Install JDK 17 or IntelliJ IDEA." -ForegroundColor Red
-    exit 1
-}
-
-$javaPath = if ($java.Path) { $java.Path } else { $java.FullName }
-$env:JAVA_HOME = Split-Path -Parent (Split-Path -Parent $javaPath)
-$env:Path = (Join-Path $env:JAVA_HOME "bin") + ";" + $env:Path
-$env:EMS_BROWSER_AUTO_OPEN = "false"
-
-$mavenPath = if ($maven.Path) { $maven.Path } else { $maven.FullName }
-Write-LauncherLog "Using Java: $javaPath"
-Write-LauncherLog "Using Maven: $mavenPath"
-Write-LauncherLog "Starting EMS..."
-if (Test-Path $appLog) { Remove-Item $appLog -Force }
-if (Test-Path $appErrorLog) { Remove-Item $appErrorLog -Force }
-
-$process = Start-Process -FilePath $mavenPath `
-    -ArgumentList @("spring-boot:run", "-DskipTests") `
-    -WorkingDirectory $backendDir `
-    -RedirectStandardOutput $appLog `
-    -RedirectStandardError $appErrorLog `
-    -WindowStyle Hidden `
-    -PassThru
-
-$process.Id | Set-Content -Path $pidFile -Encoding ASCII
-Write-LauncherLog "Background process PID: $($process.Id)"
-
-for ($i = 1; $i -le 120; $i++) {
-    Start-Sleep -Seconds 1
-    if ($process.HasExited) {
-        Write-LauncherLog "The application exited early. Exit code: $($process.ExitCode)"
-        Write-Host "Startup failed. Check logs\application-error.log." -ForegroundColor Red
-        exit 1
-    }
-    if (Test-Port 8080) {
-        Write-LauncherLog "Startup succeeded. Opening the browser."
-        Start-Process "http://localhost:8080"
+﻿param([switch]$NoBrowser)
+$ErrorActionPreference = 'Stop'
+. "$PSScriptRoot\portable-common.ps1"
+$lock = $null
+$state = $null
+$startedApp = $false
+$startedDb = $false
+try {
+    $lock = Enter-EmsLock
+    Assert-Package
+    $state = Read-EmsState
+    if ($state -and (Get-OwnedProcess $state.app)) {
+        if (-not (Test-EmsReady $state)) { throw 'The recorded EMS instance is still starting or unhealthy. Run the stop BAT, then retry.' }
+        Write-Host "EMS is already running: http://127.0.0.1:$($state.httpPort)"
+        if (-not $NoBrowser) { Open-EmsBrowser $state.httpPort }
         exit 0
     }
-    if ($i % 10 -eq 0) { Write-Host "Starting, please wait... ($i seconds)" }
-}
-
-Write-LauncherLog "Port 8080 was not available after 120 seconds."
-Write-Host "Startup timed out. Check MySQL and the credentials in application.yml." -ForegroundColor Red
-exit 1
+    if (-not $state) { $state = New-EmsState }
+    Mount-EmsNativeRoot $state
+    Save-EmsState $state
+    Initialize-EmsDatabase
+    if (-not (Get-OwnedProcess $state.database)) {
+        $state.dbPort = Find-FreePort 13306 13320 $state.dbPort
+        Save-EmsState $state
+        Start-EmsDatabase $state
+        $startedDb = $true
+    }
+    Wait-EmsDatabase $state
+    Restore-EmsSnapshot $state
+    Update-EmsProfileSchema $state
+    $state.version = '1.1.3'
+    $state.httpPort = Find-FreePort 8080 8090 $state.httpPort
+    $state.token = New-EmsSecret
+    Save-EmsState $state
+    Write-Utf8 "$script:DataDir\application.started" '1.1.3'
+    $secrets = Read-EmsSecrets
+    $env:EMS_DB_PORT = [string]$state.dbPort
+    $env:EMS_HTTP_PORT = [string]$state.httpPort
+    $env:EMS_DB_PASSWORD = $secrets.app
+    $env:EMS_INSTANCE_TOKEN = $state.token
+    try {
+        $process = Start-Process -FilePath $script:JavaExe -ArgumentList ('-Dfile.encoding=UTF-8 -jar ' + (Quote-EmsArgument $script:JarFile) + ' --spring.profiles.active=portable') -WorkingDirectory $script:EmsRoot -WindowStyle Hidden -RedirectStandardOutput "$script:LogDir\application.log" -RedirectStandardError "$script:LogDir\application-error.log" -PassThru
+        $state.app = Get-ProcessIdentity $process $script:JavaExe
+        $startedApp = $true
+        Save-EmsState $state
+    } finally {
+        Remove-Item Env:\EMS_DB_PASSWORD,Env:\EMS_INSTANCE_TOKEN,Env:\EMS_DB_PORT,Env:\EMS_HTTP_PORT -ErrorAction SilentlyContinue
+    }
+    $ready = $false
+    for ($i = 0; $i -lt 120; $i++) {
+        if (-not (Get-OwnedProcess $state.app)) { throw 'The backend exited. See logs\application-error.log and logs\application.log.' }
+        if (Test-EmsReady $state) { $ready = $true; break }
+        if ($i % 10 -eq 0) { Write-Host "Starting EMS, please wait... ($i seconds)" }
+        Start-Sleep -Seconds 1
+    }
+    if (-not $ready) { throw 'Backend readiness timed out after 120 seconds.' }
+    Write-EmsLog "EMS v1.1.3 ready at http://127.0.0.1:$($state.httpPort)"
+    if (-not $NoBrowser) { Open-EmsBrowser $state.httpPort }
+} catch {
+    Write-EmsLog "START FAILED: $($_.Exception.Message)"
+    if ($state) {
+        if ($startedApp) { Stop-EmsApplication $state }
+        if ($startedDb) { Stop-EmsDatabase $state }
+        Dismount-EmsNativeRoot $state
+        Save-EmsState $state
+    }
+    Write-Host 'Startup failed. See logs\launcher.log, logs\mysql-error.log and logs\application-error.log.' -ForegroundColor Red
+    exit 1
+} finally { if ($lock) { $lock.Dispose() } }

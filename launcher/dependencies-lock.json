@@ -1,0 +1,9 @@
+{
+  "java": {
+    "name": "OpenJDK17U-jre_x64_windows_hotspot_17.0.20.1_1.zip",
+    "link": "https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.20.1%2B1/OpenJDK17U-jre_x64_windows_hotspot_17.0.20.1_1.zip",
+    "sha256": "bc21a93923103cdaac93ee337b0ae4365e739fde36df823dd456bc67c8a9d352"
+  },
+  "mysql": { "version": "8.0.46", "source": "https://dev.mysql.com/downloads/mysql/8.0.html" },
+  "visualCpp": { "version": "14.40.33807", "source": "https://learn.microsoft.com/cpp/windows/redistributing-visual-cpp-files" }
+}

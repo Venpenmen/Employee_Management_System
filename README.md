@@ -1,175 +1,115 @@
-# EMS 员工管理系统
+# EMS 员工管理系统 v1.1.3
 
-> 正式版 V1.0 · Spring Boot + Thymeleaf + MySQL 的前后端分目录员工管理系统
+> **develop 整合状态（2026-10-19）**：本次仅整合 A 负责的文档、启动器及发布/测试脚本。B 的前端和 C 的后端数据库改动尚未整合，当前源码不代表完整可运行的 v1.1.3；以下功能和验收记录描述的是原 v1.1.3 工程，尚未在本分支重新验收。现阶段请勿使用 BAT 或发布脚本验证当前工程。
+>
+> 本次不提交 `bootstrap/` 业务数据快照、运行环境或生成产物。完整便携发行包须待 B/C 整合并回归后，从获准分发的数据源重新构建；克隆本仓库不等于获得完整便携包。`bootstrap/` 保持忽略，不应通过强制添加将真实业务数据入库。
 
-EMS 是一个面向企业内部的人力资源管理项目，提供员工、部门、职位、招聘、薪资、考勤、请假和操作日志等功能。V1.0 是项目首个正式发布版本，代码在仓库根目录中明确划分为 `frontend` 与 `backend` 两部分。
 
-## 项目结构
+Spring Boot + Thymeleaf + MySQL 员工管理系统，支持 Windows 免安装分发和 IDEA 开发启动。
 
-```text
-employee-management-system/
-├─ frontend/                   # 前端页面与样式
-│  ├─ templates/              # Thymeleaf HTML 模板
-│  ├─ static/css/             # CSS 静态资源
-│  └─ README.md
-├─ backend/                    # Spring Boot 后端
-│  ├─ src/main/java/          # Java 源代码
-│  ├─ src/main/resources/     # 配置与数据库脚本
-│  ├─ pom.xml                 # Maven 构建配置
-│  └─ README.md
-├─ launcher/                   # Windows 启停脚本实现
-├─ 启动员工管理系统.bat        # Windows 一键启动
-├─ 停止员工管理系统.bat        # Windows 一键停止
-├─ 初始员工导入列表.xlsx        # Excel 导入示例
-└─ README.md
-```
+## 普通用户：解压即用
 
-前端与后端在源码层面分目录管理。构建时，Maven 会将 `frontend/templates` 和 `frontend/static` 自动复制到 Spring Boot classpath，最终仍输出一个可直接部署的应用，因此不改变原有页面路由、接口或启动体验。
+使用 dist/EMS员工管理系统_v1.1.3_Windows_x64.zip，完整解压到可写目录。
 
-## 技术栈
+- 双击“启动员工管理系统.bat”：启动包内数据库及后端，就绪后自动打开网页。
+- 双击“停止员工管理系统.bat”：关闭本包进程，保留业务数据。
+- 无需安装 JDK、Maven、MySQL 或运行库，无需联网、管理员权限及环境变量。
+- 支持 Windows 10/11 x64；每份解压包独立保存数据，默认仅本机访问。
+- 保留发布时的业务记录及账号密码，首次启动导入，后续启动不会覆盖。
 
-| 分类 | 技术 |
-| --- | --- |
-| 后端 | Java 17、Spring Boot 3.4.5、Spring MVC、JdbcTemplate |
-| 前端 | Thymeleaf、HTML、CSS、原生 JavaScript |
-| 数据库 | MySQL 8.0 |
-| 文件处理 | Apache POI 5.4.1 |
-| 构建工具 | Maven 3.8+ |
+运行时使用 app/、runtime/、bootstrap/、launcher/；业务数据保存在 data/，日志在 logs/。
+网页优先使用 8080，冲突时尝试 8081–8090；数据库优先使用 13306，冲突时尝试至 13320。
+实际地址见 logs/launcher.log。首次启动需要等待数据库初始化，不能在 ZIP 内直接运行 BAT。
+备份或移动目录前先停止系统，完整保留 data/。详见“便携版使用说明.txt”。
+
+请分发 dist 中经验证的 ZIP，避免将开发目录中的运行日志、个人配置和使用后的 data 一同压缩。
+
+## 开发者：IDEA 启动保持不变
+
+1. 安装 JDK 17、Maven 3.8+ 和 MySQL 8.0。
+2. IDEA 打开 backend/pom.xml，等待依赖加载。
+3. 根据本机环境配置 backend/src/main/resources/application.yml。
+4. 直接运行 EmsApplication.main()，无需额外 profile，默认连接本机 MySQL 并自动打开网页。
+
+命令行开发启动：进入 backend，执行 mvn spring-boot:run。
+普通开发构建：mvn clean package，产物为 employee-management-system-1.1.3.jar。
+发布脚本结束时会恢复 target/classes 中的开发配置，不影响随后在 IDEA 直接运行主类。
+
+源码按 frontend/ 与 backend/ 分目录，前端是 Thymeleaf 服务端模板，构建后合入同一应用。
+IDEA 使用开发配置；BAT 使用 portable 配置及独立数据库。停止 BAT 不关闭 IDEA 或本机 MySQL。
+
+## 发布者：重新生成免安装 ZIP
+
+在开发机器执行 launcher/build-release.ps1。首次构建需要联网下载已固定版本且校验 SHA256 的 Java JRE，并由 Maven解析构建依赖；接收者运行无需联网。
+
+示例（Windows PowerShell）：
+
+    .\launcher\build-release.ps1 -MySqlHome "E:\MySQL\MySQL Server 8.0" -VisualCppRedist "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Redist\MSVC\14.40.33807\x64\Microsoft.VC143.CRT" -VisualCppLicense "C:\Program Files\Microsoft Visual Studio\2022\Community\Licenses\2052\Redist.txt"
+
+MySQL 固定 8.0.46；Java 和运行库版本见 launcher/dependencies-lock.json。源组件目录不得包含修改后的非官方二进制。
+源数据库默认 127.0.0.1:3306，root 用户，密码读取本项目开发配置；可通过 EMS_SOURCE_DB_PASSWORD 环境变量覆盖。
+其他连接参数为 -SourceHost、-SourcePort、-SourceUser，源库名固定 ems_db。
+
+发布期间暂停源系统业务写入及结构修改。脚本只读取源库，使用单事务逻辑快照；
+核对导出前后行数，在临时独立数据库恢复并再次核对全部表，然后验证网页可访问及正常停止。
+验证失败不生成新 ZIP。临时源库连接凭据在 finally 中清除，不进入发布包。
+发布 JAR 不包含开发 application.yml 中的数据库凭据，数据快照不包含宿主 MySQL 系统账号。
+
+输出 ZIP 和 SHA256 文件在 dist/。包内保留第三方许可证、运行库文件哈希清单和快照校验信息。
+.release-work/runs/ 保存本次工作目录，完成后默认回收；精简诊断证据保存到 .release-evidence/，均不参与 ZIP。
+重新发布会导出当前本机开发数据库；不会自动合并便携版中产生的数据。
 
 ## 功能
 
-- 工号密码登录、招聘后注册、个人资料与修改密码。
-- 员工、部门、职位、招聘和离职管理。
-- 高层、部门经理、普通员工三级权限控制。
-- 单个招聘与 Excel 批量招聘。
-- 薪资生成、调整、发布、查询和导出。
-- 上下班打卡、迟到早退判定及考勤修正。
-- 请假申请、撤回、分级审批和审批自动转交。
-- 操作日志与系统数据字典。
-- Windows 双击启动、后台运行、自动打开浏览器和日志记录。
+三级角色（高层、经理、员工）；招聘、Excel 导入、员工调动和离职；部门、职位与经理任免；
+薪资生成、调整、发布及导出；考勤打卡与修正；请假申请、撤回与审批；操作日志和数据字典。
 
-## 权限概览
+演示初始账号：高层 260001 / Admin123，经理 260002 / Manager123，员工 260005 / Employee123。
+如果当前数据库中已修改密码，以原账号实际密码为准。
 
-| 操作 | 普通员工 | 部门经理 | 系统高层 |
-| --- | :---: | :---: | :---: |
-| 查看个人资料与工资条 | ✓ | ✓ | ✓ |
-| 查看同部门员工列表 | ✓ | ✓ | ✓ |
-| 调整本部门普通员工职位 |  | ✓ |  |
-| 跨部门调动与离职办理 |  |  | ✓ |
-| 任命或更换部门经理 |  |  | ✓ |
-| 管理部门、职位、薪资和日志 |  |  | ✓ |
+## v1.1 免安装分发（历史）
 
-个人档案中的身份证号、手机号、出生日期和工资等隐私资料仅本人及系统高层可查看。
+新增附带运行环境和数据库的 Windows 免安装包、独立 portable 配置、数据快照恢复、
+端口冲突处理、实例身份及就绪验证、正常启停和可重复执行的发布流程。
+保持 IDEA 默认开发启动；保留 v1.0 业务功能，本次不改变薪资及考勤业务规则。
 
-## 环境要求
+中文路径兼容：运行时临时占用一个 G:–Z: 空闲盘符，正常停止后自动移除。该盘符指向解压目录，不复制数据、不安装服务，也不修改已有盘符。
 
-- JDK 17
-- Maven 3.8+
-- MySQL 8.0
-- Windows 一键启动，或使用 IntelliJ IDEA / 命令行运行
+## 回归验收
 
-## 快速开始
+发布 ZIP 生成后，可执行 launcher/test-portable.ps1 -OpenBrowser。在中文及空格路径中解压独立副本，清除开发工具 PATH，测试端口冲突、首启中断、业务流程、异常恢复及移动后重启。
+业务测试只修改临时副本；默认使用现有高层账号的 Admin123 密码，若已变更，可传 -AdminPassword。测试副本保留在 .release-work 供诊断。
 
-### 1. 配置数据库
+## v1.1.1 完整个人档案（历史）
 
-打开 `backend/src/main/resources/application.yml`，按本机 MySQL 环境修改：
+个人资料已扩展为：基本信息、联系方式、教育经历、工作经历、技能、证书、修改记录。
+员工、经理和高层均可维护自己的联系方式及扩展档案；经理不能访问他人完整档案，高层可在员工详情查看只读档案。
+姓名、身份证、生日、工号、角色、部门、职位、入职日期和工资标准保持只读。身份证脱敏显示。
+本版不提供头像、附件上传或重要信息变更审批。
 
-```yaml
-spring:
-  datasource:
-    username: root
-    password: "你的 MySQL 密码"
-```
+联系方式保存有版本检查；若其他页面已保存，当前页面会提示刷新，不会覆盖较新资料。
+所有新表单校验 CSRF，明细编辑和删除校验记录归属，日志仅记录变更字段名称，不写入联系人、地址等完整内容。
 
-默认连接 `localhost:3306`。数据库 `ems_db`、数据表及演示数据会在首次启动时自动创建。
+数据库升级：
+开发启动自动执行 db/migration/profile-v1.1.1.sql；便携启动在后端前使用包内管理账号执行同一份增量建表 SQL。
+只新增五张表，旧记录缺失扩展档案时显示未填写；原有员工、工资、考勤、请假等表不重建。
+旧版便携用户：先停止并备份完整旧目录，再以新版 app、launcher、runtime 及 BAT 替换程序文件，完整保留旧 data。
+不要删除或覆盖旧 data，不要通过重新导入 bootstrap 快照升级已有业务数据库。
+新用户使用 dist 中 v1.1.2 ZIP，解压后直接启动。
+发布脚本按全部实际业务表导出和核对快照，源库仍为旧版十二张表时也可打包，首启会自动创建扩展表。
+## v1.1.2 体验优化与稳定性修补
+新增员工分页、档案防丢失和提交保护、统一显示格式、首页快捷入口与待审批数量；加强注册校验、会话轮换、工资字段权限和错误提示。详见 更新说明_v1.1.2.md。无新增数据表，保留 profile-v1.1.1.sql 历史文件名。
 
-### 2. Windows 一键启动
+## v1.1.3 产物治理
+统一发布入口继续为launcher/build-release.ps1，必需的MySQL与VC运行库参数不变。
+现在每次执行Maven、候选包、HTTP、浏览器、Excel及开发兼容性检查，再发布正式ZIP。
+开发工具通过PATH发现，可传-MavenExe、-JavaExe、-NodeExe、-BrowserExe覆盖；浏览器自动探测Chrome/Edge。
+新任务统一在.release-work/runs/；成功失败默认均只保留.release-evidence/中的精简证据。
+-KeepArtifacts显式保留完整副本；停止失败或文件占用时保留并报告，不强删。
+退出码0完成、1主要任务失败、2主要任务成功但清理未完成。证据默认最多20次/200 MiB，单次10 MiB。
+单独运行launcher/test-portable.ps1同样使用独立上下文并执行完整验收，不依赖旧browser-info或残留副本。
+历史版本压缩包和SQL备份保留；真实data、运行库与源码不属于垃圾清理范围。
+详见更新说明_v1.1.3.md、验收记录_v1.1.3.md及空间审计报告_v1.1.3.md。
 
-双击仓库根目录的：
-
-```text
-启动员工管理系统.bat
-```
-
-启动器会寻找系统 Maven；若未找到，会继续尝试 IntelliJ IDEA 自带的 Maven。8080 端口就绪后，默认浏览器会自动访问 <http://localhost:8080>。
-
-停止系统时双击 `停止员工管理系统.bat`。运行日志保存在根目录的 `logs/` 中。
-
-### 3. IntelliJ IDEA 启动
-
-1. 使用 IDEA 打开仓库中的 `backend` 文件夹或 `backend/pom.xml`。
-2. 等待 Maven 完成依赖下载。
-3. 修改 `backend/src/main/resources/application.yml` 中的数据库密码。
-4. 运行 `backend/src/main/java/com/example/ems/EmsApplication.java`。
-
-程序就绪后会自动打开浏览器。如果系统阻止自动打开，请手动访问 <http://localhost:8080>。
-
-### 4. 命令行启动
-
-```bash
-cd backend
-mvn spring-boot:run
-```
-
-### 5. 打包
-
-```bash
-cd backend
-mvn clean package
-java -jar target/employee-management-system-1.0.0.jar
-```
-
-## 演示账号
-
-| 身份 | 工号 | 初始密码 |
-| --- | --- | --- |
-| 系统高层 | `260001` | `Admin123` |
-| A 部门经理 | `260002` | `Manager123` |
-| 普通员工 | `260005` | `Employee123` |
-
-演示环境使用完成后请及时修改初始密码。
-
-## Excel 导入
-
-仓库根目录提供 `初始员工导入列表.xlsx`。导入文件必须保持以下列顺序：
-
-```text
-姓名、身份证号、出生日期、入职日期、部门名称、职位名称
-```
-
-同一份示例数据请勿重复导入。
-
-## 常见问题
-
-### 启动后网页没有自动打开
-
-等待控制台出现启动成功信息，然后手动访问 <http://localhost:8080>。Windows 启动器的日志位于 `logs/launcher.log`，应用错误位于 `logs/application-error.log`。
-
-### 8080 端口被占用
-
-修改 `backend/src/main/resources/application.yml`：
-
-```yaml
-server:
-  port: 8081
-```
-
-使用一键启动脚本时建议继续使用默认 8080 端口，因为启动器会检测该端口并打开对应网页。
-
-### 重置演示数据
-
-在 MySQL 中删除 `ems_db` 数据库后重新启动，系统会自动重建结构和演示数据。执行前请先备份需要保留的数据。
-
-## 版本说明
-
-### V1.0
-
-- 作为项目首个正式发布版本。
-- 在仓库根目录显式拆分 `frontend` 与 `backend`。
-- 固化完整业务功能、权限规则和前端样式。
-- Maven 构建自动整合前端资源，继续提供单应用运行方式。
-- 调整一键启动脚本、构建路径、版本标识与项目文档。
-
-## 开源说明
-
-当前仓库未附带开源许可证。在添加许可证前，代码默认不授予他人复制、修改和分发的权利。如计划开放协作，请根据需要补充 `LICENSE` 文件。
+空间只读报告：运行 launcher/report-space.ps1；加-RequireTarget时要求工程≤1.5 GiB且比冻结基线减少至少60%。
+中断任务默认只报告。显式恢复时使用artifact-common.ps1中的Recover-ArtifactRun，只有旧所有者已退出且路径/锁校验通过才可接管；不可按目录名清理。
