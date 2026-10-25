@@ -22,6 +22,8 @@ public class AuthService {
     }
 
     public SessionUser login(String employeeNo, String password) {
+        employeeNo = trim(employeeNo);
+        if (employeeNo == null || password == null) throw new IllegalArgumentException("工号或密码错误");
         List<Map<String, Object>> rows = jdbc.queryForList("""
             SELECT e.id,e.employee_no,e.name,e.user_type,e.department_id,e.employment_status,
                    a.password_hash,a.account_status,a.failed_login_count,a.locked_until,d.department_name
@@ -50,6 +52,13 @@ public class AuthService {
 
     @Transactional
     public void register(String employeeNo, String name, String identitySuffix, String phone, String password) {
+        // 工号、姓名、电话去除首尾空格；密码原样保留（空格也是密码的一部分）
+        employeeNo = trim(employeeNo); name = trim(name); phone = trim(phone);
+        identitySuffix = trim(identitySuffix);
+        if (employeeNo == null || !employeeNo.matches("^\\d{6}$")) throw new IllegalArgumentException("工号必须是6位数字");
+        if (name == null) throw new IllegalArgumentException("姓名不能为空");
+        if (identitySuffix == null || !identitySuffix.matches("^\\d{5}[0-9Xx]$")) throw new IllegalArgumentException("身份证后六位格式不正确（前五位为数字，最后一位为数字或X）");
+        if (phone == null || !phone.matches("^1\\d{10}$")) throw new IllegalArgumentException("手机号必须是以1开头的11位数字");
         if (password == null || password.length() < 8 || !password.matches(".*[A-Za-z].*") || !password.matches(".*\\d.*"))
             throw new IllegalArgumentException("密码至少8位，且必须包含字母和数字");
         List<Map<String, Object>> rows = jdbc.queryForList("SELECT id,name,identity_number,employment_status FROM employee WHERE employee_no=?", employeeNo);
@@ -57,17 +66,20 @@ public class AuthService {
         Map<String, Object> row = rows.get(0);
         if (((Number) row.get("employment_status")).intValue() != 0) throw new IllegalArgumentException("该工号不是待注册状态");
         if (!String.valueOf(row.get("name")).equals(name)) throw new IllegalArgumentException("姓名与招聘记录不一致");
-        String identity = String.valueOf(row.get("identity_number"));
-        if (!identity.endsWith(identitySuffix)) throw new IllegalArgumentException("身份证后六位不匹配");
+        String identity = String.valueOf(row.get("identity_number")).toUpperCase();
+        if (identity.length() < 6 || !identity.substring(identity.length() - 6).equals(identitySuffix.toUpperCase()))
+            throw new IllegalArgumentException("身份证后六位不匹配");
         Integer phoneCount = jdbc.queryForObject("SELECT COUNT(*) FROM employee WHERE phone=?", Integer.class, phone);
         if (phoneCount != null && phoneCount > 0) throw new IllegalArgumentException("手机号已经被使用");
         Long id = ((Number) row.get("id")).longValue();
-        jdbc.update("UPDATE employee SET phone=?,employment_status=1 WHERE id=?", phone, id);
+        if (jdbc.update("UPDATE employee SET phone=?,employment_status=1 WHERE id=? AND employment_status=0", phone, id) == 0)
+            throw new IllegalArgumentException("该工号不是待注册状态");
         jdbc.update("INSERT INTO user_account(employee_id,password_hash) VALUES(?,?)", id, encoder.encode(password));
         logService.log(id, "REGISTER", "EMPLOYEE", id, "员工完成账户注册");
     }
 
     public void changePassword(Long employeeId, String oldPassword, String newPassword) {
+        if (oldPassword == null || newPassword == null) throw new IllegalArgumentException("请填写原密码和新密码");
         String hash = jdbc.queryForObject("SELECT password_hash FROM user_account WHERE employee_id=?", String.class, employeeId);
         if (!encoder.matches(oldPassword, hash)) throw new IllegalArgumentException("原密码不正确");
         if (newPassword.length() < 8 || !newPassword.matches(".*[A-Za-z].*") || !newPassword.matches(".*\\d.*"))
@@ -77,4 +89,10 @@ public class AuthService {
     }
 
     public String encode(String raw) { return encoder.encode(raw); }
+
+    private static String trim(String value) {
+        if (value == null) return null;
+        String s = value.strip();
+        return s.isEmpty() ? null : s;
+    }
 }
