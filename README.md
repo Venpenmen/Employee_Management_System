@@ -1,6 +1,6 @@
 # EMS 员工管理系统 v1.1.3
 
-> **v1.1.3 集成状态**：A/B/C 已整合。源码克隆后可使用 IDEA/Maven 或根目录 BAT 启动同一个开发模式，连接同一套开发数据库（默认 localhost:3306/ems_db）；只有 dist 中不含 .git 的完整发行包才使用独立便携 MySQL。源码启动需要 JDK 17、Maven 和已配置的本机 MySQL。仅从 GitHub 克隆的仓库不包含被忽略的运行文件，不能视为完整便携发行包。此次实际验收及限制见 `集成验收报告_v1.1.3.md`，历史验收记录不替代本次结果。
+> **v1.1.3 集成状态**：A/B/C 已整合。IDEA/Maven 使用本机开发数据库（默认 localhost:3306/ems_db）；根目录 BAT 当前仍调用便携启动器以保持已有可用实例及数据（默认 13306），dist 发行版也使用独立便携 MySQL。IDEA 与根目录 BAT 尚未统一数据库，后续须先验证开发库账号及迁移方案。源码启动需要 JDK 17、Maven 和已配置的本机 MySQL。仅从 GitHub 克隆的仓库不包含被忽略的运行文件，不能视为完整便携发行包。此次实际验收及限制见 `集成验收报告_v1.1.3.md`，历史验收记录不替代本次结果。
 >
 > 本次不提交 `bootstrap/` 业务数据快照、运行环境或生成产物。完整便携发行包须待 B/C 整合并回归后，从获准分发的数据源重新构建；克隆本仓库不等于获得完整便携包。`bootstrap/` 保持忽略，不应通过强制添加将真实业务数据入库。
 
@@ -36,7 +36,7 @@ Spring Boot + Thymeleaf + MySQL 员工管理系统，支持 Windows 免安装分
 发布脚本结束时会恢复 target/classes 中的开发配置，不影响随后在 IDEA 直接运行主类。
 
 源码按 frontend/ 与 backend/ 分目录，前端是 Thymeleaf 服务端模板，构建后合入同一应用。
-IDEA 与源码根目录 BAT 均使用开发配置和同一个开发数据库，二者不可同时占用 8080 端口。源码 BAT 运行时在终端按 Ctrl+C 停止；源码目录的停止 BAT 会提示此操作。dist 发行包中的 BAT 才使用 portable 配置及独立数据库，停止发行版不会关闭 IDEA 或本机 MySQL。源码 BAT 若未设置 EMS_DB_PASSWORD，会交互提示输入开发数据库密码（不会写入文件）。
+当前 IDEA 使用开发配置（3306），根目录 BAT 与 dist 发行包使用 portable 配置及独立数据库（默认 13306）；两者业务数据尚未统一。根目录 BAT 的启动、停止均通过 launcher/start-ems.ps1 与 launcher/stop-ems.ps1。不可同时占用 8080 端口。launcher/start-development.ps1 是可选的开发启动脚本，不由根目录 BAT 自动调用。
 
 ## 发布者：重新生成免安装 ZIP
 
