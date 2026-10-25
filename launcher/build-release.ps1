@@ -8,6 +8,7 @@
     [switch]$KeepArtifacts
 )
 $ErrorActionPreference='Stop'
+if ([string]::IsNullOrEmpty($SourcePassword)) { throw 'Set EMS_SOURCE_DB_PASSWORD or supply -SourcePassword explicitly before building a release.' }
 $root=Split-Path -Parent $PSScriptRoot
 . "$PSScriptRoot\artifact-common.ps1"
 $run=New-ArtifactRun $root 'release' -KeepArtifacts:$KeepArtifacts

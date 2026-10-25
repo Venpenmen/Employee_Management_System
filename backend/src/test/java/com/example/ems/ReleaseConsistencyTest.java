@@ -46,9 +46,12 @@ class ReleaseConsistencyTest {
     }
 
     @Test
-    void developmentConfigKeepsQuotedPasswordLineForTheReleaseScript() throws Exception {
+    void developmentConfigUsesExternalCredentials() throws Exception {
         String yml = resource("application.yml");
-        assertTrue(Pattern.compile("(?m)^\\s+password:\\s*\"([^\"\\r\\n]*)\"\\s*$").matcher(yml).find());
+        assertTrue(yml.contains("password: ${EMS_DB_PASSWORD}"));
+        assertTrue(yml.contains("${EMS_DB_URL:"));
+        assertTrue(yml.contains("${EMS_DB_USER:ems_app}"));
+        assertFalse(yml.contains("123456"));
         assertTrue(yml.contains("classpath:db/migration/profile-v1.1.1.sql"));
     }
 }

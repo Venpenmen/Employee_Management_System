@@ -17,9 +17,9 @@ server:
 
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/ems_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&useSSL=false
-    username: root
-    password: "123456"
+    url: ${EMS_DB_URL:jdbc:mysql://localhost:3306/ems_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&useSSL=false}
+    username: ${EMS_DB_USER:ems_app}
+    password: ${EMS_DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
   sql:
     init:

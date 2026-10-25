@@ -17,6 +17,8 @@
 
 ## 启动
 
+先为 IDEA Run Configuration 或启动进程设置 `EMS_DB_URL`、`EMS_DB_USER`、`EMS_DB_PASSWORD`；密码没有默认值。URL 未设置时连接本机 `3306/ems_db`，用户名默认 `ems_app`。验收必须显式指定独立测试实例的 URL，不能使用业务库。IDEA 无需额外 profile；命令行从相同环境继承配置。
+
 ```bash
 mvn spring-boot:run
 ```
@@ -28,7 +30,7 @@ mvn spring-boot:run
 ```bash
 mvn test                                    # 单元及 MVC 行为测试，不需要 MySQL
 mvn clean package                           # 开发 JAR：employee-management-system-1.1.3.jar
-mvn clean package -Pportable-release        # 发布 JAR：不包含开发 application.yml
+mvn clean package -Pportable-release -DskipTests # 发布 JAR：不包含开发 application.yml；先单独运行默认配置测试
 ```
 
 发布流程由仓库根目录 `launcher/build-release.ps1` 执行，详见根目录 README。

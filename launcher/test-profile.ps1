@@ -1,4 +1,19 @@
 ﻿# Sourced by test-portable.ps1; all writes target its disposable fixture database.
+function Invoke-ExpectedFormError($Uri,$Session,$Body,[int]$Status) {
+    # PowerShell 5 strips HTML input elements from ErrorDetails; inspect the actual response body.
+    $request=[Net.HttpWebRequest]::Create($Uri)
+    $request.Method='POST';$request.CookieContainer=$Session.Cookies
+    $request.ContentType='application/x-www-form-urlencoded; charset=UTF-8'
+    $encoded=($Body.GetEnumerator()|ForEach-Object{[uri]::EscapeDataString([string]$_.Key)+'='+[uri]::EscapeDataString([string]$_.Value)}) -join '&'
+    $bytes=[Text.Encoding]::UTF8.GetBytes($encoded);$request.ContentLength=$bytes.Length
+    $stream=$request.GetRequestStream();try{$stream.Write($bytes,0,$bytes.Length)}finally{$stream.Dispose()}
+    try {$response=$request.GetResponse()}catch [Net.WebException] {$response=$_.Exception.Response;if(!$response){throw}}
+    try {
+        if([int]$response.StatusCode -ne $Status){throw "Expected HTTP $Status from $Uri, received $([int]$response.StatusCode)"}
+        $reader=New-Object IO.StreamReader($response.GetResponseStream(),[Text.Encoding]::UTF8)
+        try{return [pscustomobject]@{Content=$reader.ReadToEnd();StatusCode=$Status}}finally{$reader.Dispose()}
+    } finally {$response.Dispose()}
+}
 function Get-ProfileToken($Session) {
     $page=Invoke-WebRequest -UseBasicParsing -Uri "$baseUrl/profile/edit" -WebSession $Session
     if($page.Content -match '<title>操作失败</title>'){throw 'Profile edit template failed to render'}
@@ -15,15 +30,15 @@ function Invoke-ProfileAcceptance {
     $null=Invoke-WebRequest -UseBasicParsing -Uri "$baseUrl/profile" -Method Post -WebSession $employee -Body $body
     Assert-Test ((Invoke-FixtureSql "SELECT p.email FROM employee_profile p JOIN employee e ON e.id=p.employee_id WHERE e.employee_no='$employeeNo'") -eq 'archive-test@example.com') 'Basic profile saves to the logged-in owner'
     Assert-Test ((Invoke-FixtureSql "SELECT user_type FROM employee WHERE employee_no='$employeeNo'") -eq '0') 'Extra employee ID, role, department and salary fields cannot change protected data'
-    $null=Invoke-WebRequest -UseBasicParsing -Uri "$baseUrl/profile" -Method Post -WebSession $employee -Body $body
+    $null=Invoke-ExpectedFormError "$baseUrl/profile" $employee $body 409
     Assert-Test ((Invoke-FixtureSql "SELECT version FROM employee_profile p JOIN employee e ON e.id=p.employee_id WHERE e.employee_no='$employeeNo'") -eq [string]($version+1)) 'Stale basic-profile form is rejected without overwriting the newer version'
     $body.version=$version+1
     $body.phone=Invoke-FixtureSql "SELECT phone FROM employee WHERE employee_no='$adminNo'"
-    $null=Invoke-WebRequest -UseBasicParsing -Uri "$baseUrl/profile" -Method Post -WebSession $employee -Body $body
+    $null=Invoke-ExpectedFormError "$baseUrl/profile" $employee $body 400
     Assert-Test ((Invoke-FixtureSql "SELECT phone FROM employee WHERE employee_no='$employeeNo'") -eq '13900009999') 'Duplicate phone is rejected and the original phone is preserved'
     $body.phone='13900009999'
     $body.email='bad-email'
-    $invalid=Invoke-WebRequest -UseBasicParsing -Uri "$baseUrl/profile" -Method Post -WebSession $employee -Body $body
+    $invalid=Invoke-ExpectedFormError "$baseUrl/profile" $employee $body 400
     Assert-Test ($invalid.Content -match 'bad-email' -and $invalid.Content -match '邮箱格式不正确') 'Invalid contact details return validation feedback and retain input'
     $body.email='archive-test@example.com'
     $noToken=@{version=$version+1;phone='13900009999';email='forged@example.com'}
@@ -50,8 +65,8 @@ function Invoke-ProfileAcceptance {
         @{kind='certificates';table='employee_certificate';body=@{name='测试证书';issuer='测试机构';certificateNumber='TEST-1';obtainedDate='2024-01-01';expiryDate='2028-01-01'};field='name';edited='更新证书'}
     )
     $invalidEducation=@{_csrf=$token;school='保留学校';degree='本科';startMonth='2025-09';endMonth='2024-06'}
-    $invalid=Invoke-WebRequest -UseBasicParsing -Uri "$baseUrl/profile/education" -Method Post -WebSession $employee -Body $invalidEducation
-    Assert-Test ($invalid.Content -match '保留学校' -and $invalid.Content -match '结束月份不得早于开始月份') 'Invalid experience dates preserve form values and do not write a record'
+    $invalid=Invoke-ExpectedFormError "$baseUrl/profile/education" $employee $invalidEducation 400
+    Assert-Test ($invalid.Content -match '保留学校' -and $invalid.Content -match '结束月份') 'Invalid experience dates preserve form values and do not write a record'
     foreach($definition in $definitions) {
         $kind=$definition.kind;$table=$definition.table;$entryBody=$definition.body
         $entryBody._csrf=$token
@@ -85,14 +100,16 @@ function Invoke-ProfileAcceptance {
         }catch{$denied=[int]$_.Exception.Response.StatusCode -eq 404}
         Assert-Test $denied "Manager cannot access another person's entry: $suffix"
     }
-    $privatePage=Invoke-WebRequest -UseBasicParsing -Uri "$baseUrl/employees/$employeeNo" -WebSession $manager
-    Assert-Test ($privatePage.Content -notmatch 'archive-test@example.com' -and $privatePage.Content -notmatch '隐私地址甲') 'Manager cannot read subordinate contact archive'
+    $denied=$false
+    try {$null=Invoke-WebRequest -UseBasicParsing -Uri "$baseUrl/employees/$employeeNo" -WebSession $manager}
+    catch {$denied=[int]$_.Exception.Response.StatusCode -eq 403}
+    Assert-Test $denied 'Manager cannot read subordinate contact archive'
     $executivePage=Invoke-WebRequest -UseBasicParsing -Uri "$baseUrl/employees/$employeeNo" -WebSession $admin
     Assert-Test ($executivePage.Content -match 'archive-test@example.com' -and $executivePage.Content -notmatch 'href="/profile/edit"') 'Executive can read the complete archive without another-person editing controls'
     $privacyCount=Invoke-FixtureSql "SELECT COUNT(*) FROM operation_log l JOIN employee e ON e.id=l.target_id WHERE l.target_type='EMPLOYEE_PROFILE' AND e.employee_no='$employeeNo' AND (l.summary LIKE '%archive-test@example.com%' OR l.summary LIKE '%隐私地址甲%' OR l.summary LIKE '%隐私联系人甲%' OR l.summary LIKE '%13900008888%')"
     Assert-Test ($privacyCount -eq '0') 'Profile audit summaries exclude contact values, addresses and personal text'
     $archive=Invoke-WebRequest -UseBasicParsing -Uri "$baseUrl/profile" -WebSession $employee
-    Assert-Test ($archive.Content -match '持久化技能' -and $archive.Content -match '修改个人档案字段') 'Archive lists saved records and safe change history'
+    Assert-Test ($archive.Content -match '持久化技能' -and $archive.Content -match '更新基本档案') 'Archive lists saved records and safe change history'
 }
 function Test-ProfilePersistence {
     Assert-Test ((Invoke-FixtureSql "SELECT email FROM employee_profile p JOIN employee e ON e.id=p.employee_id WHERE e.employee_no='$employeeNo'") -eq 'archive-test@example.com') 'Personal-profile fields persist across restart and directory relocation'

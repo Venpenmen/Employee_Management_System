@@ -10,6 +10,7 @@
     [string]$MavenExe='mvn.cmd'
 )
 $ErrorActionPreference = 'Stop'
+if ([string]::IsNullOrEmpty($SourcePassword)) { throw 'Set EMS_SOURCE_DB_PASSWORD or supply -SourcePassword explicitly before building a release.' }
 . "$PSScriptRoot\portable-common.ps1"
 $root = $script:EmsRoot
 . "$PSScriptRoot\artifact-common.ps1"
@@ -63,12 +64,7 @@ try {
 
     [IO.Directory]::CreateDirectory("$root\app\migrations") | Out-Null
     Copy-Item -LiteralPath "$root\backend\src\main\resources\db\migration\profile-v1.1.1.sql" -Destination "$root\app\migrations\profile-v1.1.1.sql" -Force
-    if (-not $SourcePassword) {
-        $developmentConfig = Get-Content -LiteralPath "$root\backend\src\main\resources\application.yml" -Raw -Encoding UTF8
-        $passwordMatch = [regex]::Match($developmentConfig, '(?m)^\s+password:\s*"([^"\r\n]*)"\s*$')
-        if (-not $passwordMatch.Success) { throw 'Set EMS_SOURCE_DB_PASSWORD for the source database.' }
-        $SourcePassword = $passwordMatch.Groups[1].Value
-    }
+    if ([string]::IsNullOrEmpty($SourcePassword)) { throw 'Set EMS_SOURCE_DB_PASSWORD or supply -SourcePassword explicitly; development credentials are never inferred.' }
     if ($SourceUser -notmatch '^[a-zA-Z0-9_]+$' -or $SourceHost -notmatch '^[a-zA-Z0-9.:-]+$') { throw 'Invalid source connection options.' }
     $escapedPassword = $SourcePassword.Replace('\','\\').Replace('"','\"').Replace("`r",'\r').Replace("`n",'\n')
     Write-Utf8 $sourceConfig "[client]`r`nhost=$SourceHost`r`nport=$SourcePort`r`nuser=$SourceUser`r`npassword=`"$escapedPassword`"`r`nprotocol=TCP`r`ndefault-character-set=utf8mb4`r`n"

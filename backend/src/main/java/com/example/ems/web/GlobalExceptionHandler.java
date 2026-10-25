@@ -26,6 +26,11 @@ public class GlobalExceptionHandler {
     private final ErrorResponses errors;
     public GlobalExceptionHandler(ErrorResponses errors) { this.errors = errors; }
 
+    @ExceptionHandler(org.springframework.dao.DuplicateKeyException.class)
+    public Object duplicateKey(HttpServletRequest request) {
+        return errors.respond(request, HttpStatus.CONFLICT, "数据已存在，请刷新后重试", request.getRequestURI());
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public Object badRequest(IllegalArgumentException ex, HttpServletRequest request) {
         return errors.respond(request, HttpStatus.BAD_REQUEST, message(ex, HttpStatus.BAD_REQUEST), request.getRequestURI());

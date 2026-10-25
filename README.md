@@ -1,6 +1,6 @@
 # EMS 员工管理系统 v1.1.3
 
-> **develop 整合状态（2026-10-19）**：本次仅整合 A 负责的文档、启动器及发布/测试脚本。B 的前端和 C 的后端数据库改动尚未整合，当前源码不代表完整可运行的 v1.1.3；以下功能和验收记录描述的是原 v1.1.3 工程，尚未在本分支重新验收。现阶段请勿使用 BAT 或发布脚本验证当前工程。
+> **v1.1.3 集成状态**：A/B/C 已整合。源码克隆后使用 IDEA 或 Maven 开发启动；根目录 BAT 面向重新构建的完整便携发行包，需要 app、runtime 和获准分发的 bootstrap 数据，不支持直接在源码克隆目录双击运行。此次实际验收及限制见 `集成验收报告_v1.1.3.md`，历史验收记录不替代本次结果。
 >
 > 本次不提交 `bootstrap/` 业务数据快照、运行环境或生成产物。完整便携发行包须待 B/C 整合并回归后，从获准分发的数据源重新构建；克隆本仓库不等于获得完整便携包。`bootstrap/` 保持忽略，不应通过强制添加将真实业务数据入库。
 
@@ -28,7 +28,7 @@ Spring Boot + Thymeleaf + MySQL 员工管理系统，支持 Windows 免安装分
 
 1. 安装 JDK 17、Maven 3.8+ 和 MySQL 8.0。
 2. IDEA 打开 backend/pom.xml，等待依赖加载。
-3. 根据本机环境配置 backend/src/main/resources/application.yml。
+3. 在 IDEA Run Configuration 的环境变量中设置 `EMS_DB_URL`、`EMS_DB_USER`、`EMS_DB_PASSWORD`。密码没有默认值；URL 默认指向本机 `3306/ems_db`，用户默认 `ems_app`。命令行启动从当前进程继承相同环境变量。验收时必须显式指定独立测试库，禁止指向业务库。
 4. 直接运行 EmsApplication.main()，无需额外 profile，默认连接本机 MySQL 并自动打开网页。
 
 命令行开发启动：进入 backend，执行 mvn spring-boot:run。
@@ -47,8 +47,9 @@ IDEA 使用开发配置；BAT 使用 portable 配置及独立数据库。停止 
     .\launcher\build-release.ps1 -MySqlHome "E:\MySQL\MySQL Server 8.0" -VisualCppRedist "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Redist\MSVC\14.40.33807\x64\Microsoft.VC143.CRT" -VisualCppLicense "C:\Program Files\Microsoft Visual Studio\2022\Community\Licenses\2052\Redist.txt"
 
 MySQL 固定 8.0.46；Java 和运行库版本见 launcher/dependencies-lock.json。源组件目录不得包含修改后的非官方二进制。
-源数据库默认 127.0.0.1:3306，root 用户，密码读取本项目开发配置；可通过 EMS_SOURCE_DB_PASSWORD 环境变量覆盖。
+源数据库默认 127.0.0.1:3306，root 用户；必须通过 EMS_SOURCE_DB_PASSWORD 环境变量或 -SourcePassword 参数显式提供密码，不再解析开发 YAML。不要将口令写入提交、命令历史或分享的日志；优先使用环境变量。
 其他连接参数为 -SourceHost、-SourcePort、-SourceUser，源库名固定 ems_db。
+完整发布会同时验收默认开发启动，因此还须设置 `EMS_DB_URL`、`EMS_DB_USER`、`EMS_DB_PASSWORD`，显式指向独立验收库；它们与快照源库凭据分别配置。验收脚本不会再启动源码目录中的已有便携数据库。
 
 发布期间暂停源系统业务写入及结构修改。脚本只读取源库，使用单事务逻辑快照；
 核对导出前后行数，在临时独立数据库恢复并再次核对全部表，然后验证网页可访问及正常停止。
@@ -92,6 +93,7 @@ MySQL 固定 8.0.46；Java 和运行库版本见 launcher/dependencies-lock.json
 
 数据库升级：
 开发启动自动执行 db/migration/profile-v1.1.1.sql；便携启动在后端前使用包内管理账号执行同一份增量建表 SQL。
+MySQL DDL 会隐式提交，失败不代表已建表回滚。先备份，在独立库定位失败原因并核对现有表结构，再重跑幂等建表 SQL；不能通过删除业务表或重新导入快照恢复。仅“缺少后续表”的中断可通过重跑补齐，已有同名表结构错误必须单独分析。隔离恢复测试入口为 launcher/test-migration-recovery.ps1，它创建唯一测试 schema 并保留证据。
 只新增五张表，旧记录缺失扩展档案时显示未填写；原有员工、工资、考勤、请假等表不重建。
 旧版便携用户：先停止并备份完整旧目录，再以新版 app、launcher、runtime 及 BAT 替换程序文件，完整保留旧 data。
 不要删除或覆盖旧 data，不要通过重新导入 bootstrap 快照升级已有业务数据库。

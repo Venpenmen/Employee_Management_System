@@ -35,8 +35,9 @@ try{
     $memory.Position=0
     $jar=New-Object IO.Compression.ZipArchive($memory,[IO.Compression.ZipArchiveMode]::Read)
     try{
-        $config=Read-ZipText $jar 'BOOT-INF/classes/application.yml'
-        if($config -match 'datasource:|password:|jdbc:mysql'){throw 'Development configuration was packaged'}
+        if($jar.GetEntry('BOOT-INF/classes/application.yml')){throw 'Development configuration was packaged'}
+        $config=Read-ZipText $jar 'BOOT-INF/classes/application-portable.yml'
+        if($config -notmatch 'address: 127\.0\.0\.1' -or $config -notmatch '\$\{EMS_DB_PASSWORD:' -or $config -notmatch '\$\{EMS_INSTANCE_TOKEN:'){throw 'Portable configuration must be self-contained, local-only and use external secrets'}
         if((Read-ZipText $jar 'META-INF/MANIFEST.MF') -notmatch ("Implementation-Version: "+[regex]::Escape($version))){throw 'Wrong packaged version'}
         $results.Add('JAR version and portable configuration passed')
         $oldPath=Join-Path $ProjectRoot 'dist/EMS员工管理系统_v1.1.2_Windows_x64.zip'

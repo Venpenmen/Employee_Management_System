@@ -22,6 +22,7 @@ class ErrorHandlingTest {
         @GetMapping("/forbidden") String forbidden() { throw new ForbiddenException("无权访问"); }
         @GetMapping("/missing") String missing() { throw new NotFoundException("不存在"); }
         @GetMapping("/conflict") String conflict() { throw new ConflictException("冲突"); }
+        @GetMapping("/duplicate") String duplicate() { throw new org.springframework.dao.DuplicateKeyException("Duplicate entry private-value for key uk_private"); }
         @GetMapping("/boom") String boom() { throw new DataAccessResourceFailureException("Communications link failure at 10.0.0.5"); }
         @GetMapping("/number") String number(@RequestParam int page) { return "ok"; }
         @ResponseBody @GetMapping("/api/boom") String apiBoom() { throw new IllegalStateException("NullPointer deep inside"); }
@@ -42,6 +43,14 @@ class ErrorHandlingTest {
         mvc.perform(get("/number").param("page", "abc")).andExpect(status().isBadRequest());
         mvc.perform(get("/number")).andExpect(status().isBadRequest());
         mvc.perform(post("/bad")).andExpect(status().isMethodNotAllowed());
+    }
+
+    @Test
+    void duplicateWritesAreSafeConflicts() throws Exception {
+        mvc.perform(get("/duplicate"))
+                .andExpect(status().isConflict())
+                .andExpect(model().attribute("message", "数据已存在，请刷新后重试"))
+                .andExpect(model().attribute("message", not(containsString("private-value"))));
     }
 
     @Test

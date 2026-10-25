@@ -3,6 +3,7 @@ $ErrorActionPreference = 'Stop'
 $sourceRoot = Split-Path -Parent $PSScriptRoot
 . "$PSScriptRoot\test-profile.ps1"
 . "$PSScriptRoot\test-v112.ps1"
+. "$PSScriptRoot\test-management.ps1"
 . "$PSScriptRoot\artifact-common.ps1"
 $ownsRun=-not $ContextPath
 if($ownsRun){$run=New-ArtifactRun $sourceRoot 'acceptance' -KeepArtifacts:$KeepArtifacts}else{$run=Read-ArtifactContext $sourceRoot $ContextPath}
@@ -114,6 +115,7 @@ try {
     Assert-Test ([int](Invoke-FixtureSql "SELECT COUNT(*) FROM salary_record WHERE salary_month='$month' AND status=3") -gt 0) 'Salary settlement and publication work'
     $null = Invoke-WebRequest -UseBasicParsing -Uri "$baseUrl/admin/salaries/export?month=$month" -WebSession $admin -OutFile "$caseRoot\salary-export.xlsx"
     Assert-Test ((Get-Item -LiteralPath "$caseRoot\salary-export.xlsx").Length -gt 1000) 'Salary Excel export works with the bundled Java runtime'
+    Invoke-ManagementAcceptance
     $null = Invoke-WebRequest -UseBasicParsing -Uri "$baseUrl/my-salaries?month=$month" -WebSession $employee
     $null = Invoke-WebRequest -UseBasicParsing -Uri "$baseUrl/password" -Method Post -WebSession $employee -Body @{oldPassword='Fixture123';newPassword='Changed456';confirmPassword='Changed456'}
     $null = Test-Login $employeeNo 'Changed456'

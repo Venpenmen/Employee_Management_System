@@ -2,7 +2,7 @@
 const fs=require('node:fs'),path=require('node:path'),{spawn,execFileSync}=require('node:child_process');
 const [base,employeeNo,password,output,browserExe,profilePath]=process.argv.slice(2);
 if(!browserExe||!profilePath)throw Error("Use the managed test-portable.ps1 entry point");
-const checks=[],dialogs=[],pending=new Map();let seq=0,ws,chrome,acceptDialogs=true,pausedPost=null,postCount=0,holdPost=false,pendingReport=null;
+const checks=[],dialogs=[],scriptErrors=[],pending=new Map();let seq=0,ws,chrome,acceptDialogs=true,pausedPost=null,postCount=0,holdPost=false,pendingReport=null;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const assert=(ok,msg)=>{if(!ok)throw Error(msg);checks.push(msg);console.log('PASS: '+msg);};
 const command=(method,params={})=>new Promise((resolve,reject)=>{const id=++seq;const timer=setTimeout(()=>{pending.delete(id);reject(Error('CDP timeout: '+method));},15000);pending.set(id,{resolve,reject,timer});ws.send(JSON.stringify({id,method,params}));});
@@ -25,6 +25,8 @@ async function main(){
  await new Promise((r,j)=>{ws.onopen=r;ws.onerror=j;});
  ws.onmessage=event=>{
   const m=JSON.parse(event.data);
+  if(m.method==='Runtime.exceptionThrown')scriptErrors.push(m.params.exceptionDetails.text);
+  if(m.method==='Runtime.consoleAPICalled' && m.params.type==='error')scriptErrors.push(m.params.args.map(a=>a.value||a.description||'').join(' '));
   if(m.id){const p=pending.get(m.id);if(p){clearTimeout(p.timer);pending.delete(m.id);m.error?p.reject(Error(JSON.stringify(m.error))):p.resolve(m.result);}return;}
   if(m.method==='Runtime.consoleAPICalled' && m.params.args[0]?.value?.startsWith('__EMS_PENDING__'))pendingReport=JSON.parse(m.params.args[0].value.slice(15));
   if(m.method==='Network.requestWillBeSent' && m.params.request.method==='POST' && m.params.request.url===base+'/profile')postCount++;
@@ -99,6 +101,7 @@ async function main(){
  acceptDialogs=false;await click(deleteSelector);await sleep(150);
  assert(await evaluate("location.pathname==='/profile' && !document.querySelector("+JSON.stringify(deleteSelector)+").disabled && !document.querySelector("+JSON.stringify(deleteSelector)+").closest('form').hasAttribute('aria-busy')"),'Canceling delete leaves buttons enabled and sends no deletion');
  acceptDialogs=true;
+ assert(scriptErrors.length===0,'No uncaught JavaScript exceptions or console.error calls'+(scriptErrors.length?': '+scriptErrors.join('; '):''));
  const shot=await command('Page.captureScreenshot',{format:'png'});fs.writeFileSync(path.join(path.dirname(output),'v112-profile-browser.png'),Buffer.from(shot.data,'base64'));
  fs.writeFileSync(output,checks.join('\r\n'),'utf8');
 }
