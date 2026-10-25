@@ -9,6 +9,9 @@ public class EmsApplication {
     public static final String VERSION = "1.1.3";
 
     public static void main(String[] args) {
+        if (java.util.Arrays.stream(args).noneMatch(arg -> arg.contains("spring.profiles.active=portable"))) {
+            DevelopmentBootstrap.prepare();
+        }
         SpringApplication.run(EmsApplication.class, args);
     }
 }
