@@ -85,7 +85,9 @@ public class ExcelService {
     }
 
     private LocalDate parseDate(Cell cell, DataFormatter fmt) {
-        if (cell != null && DateUtil.isCellDateFormatted(cell)) return cell.getLocalDateTimeCellValue().toLocalDate();
+        boolean numeric = cell != null && (cell.getCellType() == CellType.NUMERIC
+                || (cell.getCellType() == CellType.FORMULA && cell.getCachedFormulaResultType() == CellType.NUMERIC));
+        if (numeric && DateUtil.isCellDateFormatted(cell)) return cell.getLocalDateTimeCellValue().toLocalDate();
         return LocalDate.parse(fmt.formatCellValue(cell).trim());
     }
     private String rootMessage(Throwable e) { while(e.getCause()!=null) e=e.getCause(); return e.getMessage()==null?e.getClass().getSimpleName():e.getMessage(); }

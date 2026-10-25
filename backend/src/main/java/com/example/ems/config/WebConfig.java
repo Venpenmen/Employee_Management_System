@@ -14,6 +14,7 @@ public class WebConfig implements WebMvcConfigurer {
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(authInterceptor)
                 .addPathPatterns("/**")
-                .excludePathPatterns("/", "/login", "/register", "/css/**", "/error", "/favicon.ico");
+                // /internal/** 是便携版生命周期接口，使用独立的实例令牌校验，不走登录会话
+                .excludePathPatterns("/", "/login", "/register", "/css/**", "/js/**", "/error", "/favicon.ico", "/internal/**");
     }
 }

@@ -1,28 +1,45 @@
 server:
   port: 8080
   error:
-    include-message: always
+    # 异常细节只写服务端日志，页面不暴露底层信息
+    include-message: never
+    include-stacktrace: never
+    include-exception: false
+    include-binding-errors: never
   servlet:
     session:
       timeout: 30m
+      # 会话只通过 Cookie 传递，不在 URL 中拼接 jsessionid
+      tracking-modes: cookie
+      cookie:
+        http-only: true
+        same-site: lax
 
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/ems_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&useSSL=false
-    username: root
-    password: "123456"
+    url: ${EMS_DB_URL:jdbc:mysql://localhost:3306/ems_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&useSSL=false}
+    username: ${EMS_DB_USER:ems_app}
+    password: ${EMS_DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
   sql:
     init:
       mode: always
       encoding: UTF-8
       continue-on-error: false
+      # 开发启动：原 12 张业务表 + v1.1.1 个人档案增量表（幂等，不重建已有表）
+      schema-locations:
+        - classpath:schema.sql
+        - classpath:db/migration/profile-v1.1.1.sql
   thymeleaf:
     cache: false
   servlet:
     multipart:
       max-file-size: 10MB
       max-request-size: 10MB
+
+ems:
+  browser:
+    auto-open: true
 
 logging:
   level:

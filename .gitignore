@@ -20,3 +20,15 @@ Thumbs.db
 # Local environment overrides
 .env
 application-local.yml
+
+# Portable release artifacts and private snapshots
+app/
+runtime/
+bootstrap/
+data/
+dist/
+.release-cache/
+.release-work/
+
+/target/
+/.release-evidence/

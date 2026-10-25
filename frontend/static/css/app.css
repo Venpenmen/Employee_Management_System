@@ -129,3 +129,6 @@ td.wrap{white-space:normal;min-width:180px;line-height:1.5}
 dialog{min-width:auto;width:92%}
 .attendance-clock{align-items:flex-start;gap:20px;flex-direction:column}
 }
+
+.profile-nav{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 22px}.profile-nav a{padding:8px 14px;border-radius:8px;background:#fff;border:1px solid var(--border)}.profile-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.profile-actions form{margin:0}.profile-text{white-space:pre-wrap;overflow-wrap:anywhere}.profile-check{display:flex;align-items:center;gap:8px}.profile-check input[type=checkbox]{width:auto}section[id]{scroll-margin-top:90px}
+.pagination,.quick-links{display:flex;align-items:center;flex-wrap:wrap;gap:12px}.pagination{padding-top:18px}.field-counter{display:block;color:#64748b;text-align:right}button:disabled{cursor:wait;opacity:.65}

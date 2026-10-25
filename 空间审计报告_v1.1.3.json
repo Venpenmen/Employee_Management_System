@@ -1,0 +1,192 @@
+{
+    "recordedAt":  "2026-10-19T13:12:58.7162157+08:00",
+    "baselineBytes":  4204270347,
+    "finalBytes":  1288744716,
+    "reducedBytes":  2915525631,
+    "reductionPercent":  69.3468,
+    "maxFinalBytes":  1610612736,
+    "minimumReductionPercent":  60,
+    "spacePassed":  true,
+    "freeSpaceChangeBytes":  2808037376,
+    "historicalReclaimedBytes":  3099916012,
+    "newTaskReclaimedBytes":  4768856906,
+    "directories":  [
+                        {
+                            "bytes":  7659,
+                            "name":  ".idea"
+                        },
+                        {
+                            "bytes":  183755114,
+                            "name":  ".release-cache"
+                        },
+                        {
+                            "bytes":  5101348,
+                            "name":  ".release-evidence"
+                        },
+                        {
+                            "bytes":  0,
+                            "name":  ".release-work"
+                        },
+                        {
+                            "bytes":  46664239,
+                            "name":  "app"
+                        },
+                        {
+                            "bytes":  47374494,
+                            "name":  "backend"
+                        },
+                        {
+                            "bytes":  121490,
+                            "name":  "bootstrap"
+                        },
+                        {
+                            "bytes":  191042651,
+                            "name":  "data"
+                        },
+                        {
+                            "bytes":  530071955,
+                            "name":  "dist"
+                        },
+                        {
+                            "bytes":  72863,
+                            "name":  "frontend"
+                        },
+                        {
+                            "bytes":  145498,
+                            "name":  "launcher"
+                        },
+                        {
+                            "bytes":  23453,
+                            "name":  "logs"
+                        },
+                        {
+                            "bytes":  284305170,
+                            "name":  "runtime"
+                        },
+                        {
+                            "bytes":  0,
+                            "name":  "target"
+                        }
+                    ],
+    "largestFiles":  [
+                         {
+                             "bytes":  132538050,
+                             "path":  "dist\\EMS员工管理系统_v1.1.3_Windows_x64.zip"
+                         },
+                         {
+                             "bytes":  132537633,
+                             "path":  "dist\\EMS员工管理系统_v1.1.2_Windows_x64.zip"
+                         },
+                         {
+                             "bytes":  132516999,
+                             "path":  "dist\\EMS员工管理系统_v1.1.1_Windows_x64.zip"
+                         },
+                         {
+                             "bytes":  132478835,
+                             "path":  "dist\\EMS员工管理系统_v1.1_Windows_x64.zip"
+                         },
+                         {
+                             "bytes":  83211937,
+                             "path":  "runtime\\java\\lib\\modules"
+                         },
+                         {
+                             "bytes":  54417024,
+                             "path":  "runtime\\mysql\\bin\\mysqld.exe"
+                         },
+                         {
+                             "bytes":  46661669,
+                             "path":  "backend\\target\\employee-management-system-1.1.3.jar"
+                         },
+                         {
+                             "bytes":  46661669,
+                             "path":  "app\\ems-1.1.3.jar"
+                         },
+                         {
+                             "bytes":  46661668,
+                             "path":  ".release-cache\\previous-app\\ems-1.1.2.jar"
+                         },
+                         {
+                             "bytes":  46642278,
+                             "path":  ".release-cache\\previous-app\\ems-1.1.1.jar"
+                         },
+                         {
+                             "bytes":  46606289,
+                             "path":  ".release-cache\\previous-app\\ems-1.1.0.jar"
+                         },
+                         {
+                             "bytes":  43780109,
+                             "path":  ".release-cache\\OpenJDK17U-jre_x64_windows_hotspot_17.0.20.1_1.zip"
+                         },
+                         {
+                             "bytes":  27262976,
+                             "path":  "data\\mysql\\mysql.ibd"
+                         },
+                         {
+                             "bytes":  16777216,
+                             "path":  "data\\mysql\\undo_001"
+                         },
+                         {
+                             "bytes":  16777216,
+                             "path":  "data\\mysql\\undo_002"
+                         },
+                         {
+                             "bytes":  12684920,
+                             "path":  "runtime\\java\\bin\\server\\jvm.dll"
+                         },
+                         {
+                             "bytes":  12582912,
+                             "path":  "data\\mysql\\ibdata1"
+                         },
+                         {
+                             "bytes":  11075584,
+                             "path":  "runtime\\java\\bin\\server\\classes_nocoops.jsa"
+                         },
+                         {
+                             "bytes":  11075584,
+                             "path":  "runtime\\java\\bin\\server\\classes.jsa"
+                         },
+                         {
+                             "bytes":  8585216,
+                             "path":  "data\\mysql\\#ib_16384_1.dblwr"
+                         }
+                     ],
+    "retainedTasks":  [
+
+                      ],
+    "preservedHistoricalFiles":  [
+                                     "dist\\EMS员工管理系统_v1.1_Windows_x64.zip",
+                                     "dist\\EMS员工管理系统_v1.1_Windows_x64.zip.sha256",
+                                     "dist\\EMS员工管理系统_v1.1.1_Windows_x64.zip",
+                                     "dist\\EMS员工管理系统_v1.1.1_Windows_x64.zip.sha256",
+                                     "dist\\EMS员工管理系统_v1.1.2_Windows_x64.zip",
+                                     "dist\\EMS员工管理系统_v1.1.2_Windows_x64.zip.sha256",
+                                     ".release-cache\\backups-v1.1.1\\portable-before-counts.json",
+                                     ".release-cache\\backups-v1.1.1\\portable-before-profile.sql",
+                                     ".release-cache\\backups-v1.1.1\\source-before-profile.sql",
+                                     ".release-cache\\previous-app\\ems-1.1.0.jar",
+                                     ".release-cache\\previous-app\\ems-1.1.1.jar"
+                                 ],
+    "releases":  [
+                     {
+                         "sha256":  "8B0BF8458CE38350792D275DA097DF276D47859C6AF22A34D4609A2B949C6D39",
+                         "file":  "EMS员工管理系统_v1.1.1_Windows_x64.zip",
+                         "bytes":  132516999
+                     },
+                     {
+                         "sha256":  "27A7BA0C33442FE04B7C5EC8099FB1EB83338254076F5E1CBD9CFB42806B872F",
+                         "file":  "EMS员工管理系统_v1.1.2_Windows_x64.zip",
+                         "bytes":  132537633
+                     },
+                     {
+                         "sha256":  "EE84BCCFCBE193E67F965DA90E413CB5C4C5AACDE486A1D5DC927F91A658844D",
+                         "file":  "EMS员工管理系统_v1.1.3_Windows_x64.zip",
+                         "bytes":  132538050
+                     },
+                     {
+                         "sha256":  "5C2E1D408D76F24A267606B6BC49EFE47CA428E3EFD78F207F57C5BD6DC1067B",
+                         "file":  "EMS员工管理系统_v1.1_Windows_x64.zip",
+                         "bytes":  132478835
+                     }
+                 ],
+    "note":  "Logical file lengths include all local project directories. Free-space change is measured separately and can be affected by other programs."
+}
