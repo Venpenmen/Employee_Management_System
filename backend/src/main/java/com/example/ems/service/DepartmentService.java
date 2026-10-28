@@ -11,6 +11,8 @@ import java.util.Map;
 
 @Service
 public class DepartmentService {
+    @org.springframework.beans.factory.annotation.Autowired private SessionService sessions;
+    private void guard(Long id,int role){if(sessions==null)throw new IllegalStateException("Session protection is not configured");sessions.guardCurrent(id,role);}
     private final JdbcTemplate jdbc;
     private final LogService logService;
     public DepartmentService(JdbcTemplate jdbc, LogService logService) { this.jdbc = jdbc; this.logService = logService; }
@@ -24,7 +26,7 @@ public class DepartmentService {
             """);
     }
     public List<Map<String,Object>> listPositions() {
-        return jdbc.queryForList("SELECT p.*,d.department_name FROM position_info p JOIN department d ON d.id=p.department_id WHERE p.status=1 ORDER BY d.id,p.id");
+        return jdbc.queryForList("SELECT p.*,d.department_name,d.base_salary AS department_base_salary,(d.base_salary+p.position_salary) AS basic_salary FROM position_info p JOIN department d ON d.id=p.department_id WHERE p.status=1 ORDER BY d.id,p.id");
     }
     public List<Map<String,Object>> positionsByDepartment(Long id) {
         return jdbc.queryForList("SELECT * FROM position_info WHERE department_id=? AND status=1 ORDER BY is_manager_position,position_name", id);
@@ -39,13 +41,17 @@ public class DepartmentService {
             ORDER BY e.department_id,e.user_type DESC,e.employee_no
             """);
     }
+    @Transactional
     public void createDepartment(String name, BigDecimal salary, String description, Long operatorId) {
+        guard(operatorId,2);
         requireText(name,"部门名称不能为空"); requireMoney(salary,"基础工资不能为负数");
         jdbc.update("INSERT INTO department(department_name,base_salary,status,description) VALUES(?,?,0,?)",name.trim(),salary,description);
         Long id=jdbc.queryForObject("SELECT id FROM department WHERE department_name=?",Long.class,name.trim());
         logService.log(operatorId,"CREATE_DEPARTMENT","DEPARTMENT",id,"创建部门："+name.trim());
     }
+    @Transactional
     public void createPosition(Long departmentId,String name,BigDecimal salary,boolean managerPosition,Long operatorId) {
+        guard(operatorId,2);
         requireText(name,"职位名称不能为空"); requireMoney(salary,"岗位工资不能为负数");
         if(managerPosition) throw new IllegalArgumentException("经理职位由系统自动维护，不能手动创建");
         jdbc.update("INSERT INTO position_info(department_id,position_name,position_salary,is_manager_position) VALUES(?,?,?,0)",departmentId,name.trim(),salary);
@@ -53,6 +59,7 @@ public class DepartmentService {
     }
     @Transactional
     public void updateDepartment(Long id,String name,BigDecimal salary,String description,Long operatorId) {
+        guard(operatorId,2);
         requireText(name,"部门名称不能为空"); requireMoney(salary,"基础工资不能为负数");
         Integer duplicate=jdbc.queryForObject("SELECT COUNT(*) FROM department WHERE department_name=? AND id<>?",Integer.class,name.trim(),id);
         if(duplicate!=null&&duplicate>0) throw new IllegalArgumentException("部门名称已经存在");
@@ -61,6 +68,7 @@ public class DepartmentService {
     }
     @Transactional
     public void deleteDepartment(Long id,Long operatorId) {
+        guard(operatorId,2);
         Map<String,Object> d=getDepartment(id);
         Long managerId=d.get("manager_id")==null?null:((Number)d.get("manager_id")).longValue();
         Integer otherActive;
@@ -83,6 +91,7 @@ public class DepartmentService {
     }
     @Transactional
     public void updatePosition(Long id,String name,BigDecimal salary,Long operatorId) {
+        guard(operatorId,2);
         requireText(name,"职位名称不能为空"); requireMoney(salary,"岗位工资不能为负数");
         Map<String,Object> p=getPosition(id); Long departmentId=((Number)p.get("department_id")).longValue();
         if(((Number)p.get("is_manager_position")).intValue()==1&&!"部门经理".equals(name.trim())) throw new IllegalArgumentException("经理职位名称固定为“部门经理”");
@@ -93,6 +102,7 @@ public class DepartmentService {
     }
     @Transactional
     public void deletePosition(Long id,Long operatorId) {
+        guard(operatorId,2);
         Map<String,Object> p=getPosition(id);
         if(((Number)p.get("is_manager_position")).intValue()==1) throw new IllegalArgumentException("部门经理职位不能删除");
         Integer count=jdbc.queryForObject("SELECT COUNT(*) FROM employee WHERE position_id=?",Integer.class,id);
@@ -102,10 +112,12 @@ public class DepartmentService {
     }
     @Transactional
     public void appointManagerByEmployeeNo(Long departmentId,String employeeNo,Long operatorId) {
+        guard(operatorId,2);
         if(employeeNo==null||!employeeNo.matches("^\\d{6}$")) throw new IllegalArgumentException("请输入正确的六位工号");
         Map<String,Object> e;
-        try{e=jdbc.queryForMap("SELECT id,name,department_id,employment_status FROM employee WHERE employee_no=?",employeeNo);}
+        try{e=jdbc.queryForMap("SELECT id,name,department_id,employment_status,user_type FROM employee WHERE employee_no=?",employeeNo);}
         catch(EmptyResultDataAccessException ex){throw new IllegalArgumentException("工号不存在："+employeeNo);}
+        if(((Number)e.get("user_type")).intValue()==2)throw new IllegalArgumentException("不能通过经理任免更改高层身份");
         Long employeeId=((Number)e.get("id")).longValue();
         if(((Number)e.get("employment_status")).intValue()!=1) throw new IllegalArgumentException("只能任命在职员工");
         if(e.get("department_id")==null||!departmentId.equals(((Number)e.get("department_id")).longValue())) throw new IllegalArgumentException("只能任命本部门员工为经理");
@@ -121,6 +133,14 @@ public class DepartmentService {
             managerPosition=jdbc.queryForObject("SELECT id FROM position_info WHERE department_id=? AND is_manager_position=1 LIMIT 1",Long.class,departmentId);
         }
         jdbc.update("UPDATE employee SET user_type=1,position_id=? WHERE id=?",managerPosition,employeeId);
+        // Promotion changes the approver class of the employee's own pending requests.
+        Long executive=jdbc.query("SELECT e.id FROM employee e JOIN user_account a ON a.employee_id=e.id WHERE e.user_type=2 AND e.employment_status=1 AND a.account_status=1 ORDER BY e.id LIMIT 1",rs->rs.next()?rs.getLong(1):null);
+        var ownPending=jdbc.queryForList("SELECT id FROM leave_request WHERE employee_id=? AND status=1 FOR UPDATE",employeeId);
+        if(!ownPending.isEmpty()&&executive==null)throw new IllegalArgumentException("缺少可审批的高层，不能转交新经理的待审批申请");
+        for(var pending:ownPending){
+            jdbc.update("UPDATE leave_request SET current_approver_id=? WHERE id=? AND status=1",executive,pending.get("id"));
+            jdbc.update("INSERT INTO leave_approval_record(leave_request_id,approver_id,action,before_status,after_status,opinion) VALUES(?,?,'TRANSFER',1,1,'经理任命后自动转交高层')",pending.get("id"),operatorId);
+        }
         jdbc.update("UPDATE department SET manager_id=?,status=1 WHERE id=?",employeeId,departmentId);
         if(oldManager!=null&&!oldManager.equals(employeeId)){
             jdbc.update("""

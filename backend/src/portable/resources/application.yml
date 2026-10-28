@@ -1,0 +1,43 @@
+server:
+  address: 127.0.0.1
+  port: ${EMS_DEV_HTTP_PORT:8282}
+  shutdown: graceful
+  error:
+    include-message: never
+  servlet:
+    session:
+      persistent: false
+      timeout: 30m
+      tracking-modes: cookie
+      cookie:
+        name: EMS120U_DEV
+        http-only: true
+        same-site: lax
+        secure: ${EMS_COOKIE_SECURE:false}
+spring:
+  flyway:
+    enabled: false
+  datasource:
+    hikari:
+      connection-timeout: 3000
+      validation-timeout: 1000
+      maximum-pool-size: 10
+      minimum-idle: 2
+    url: jdbc:mysql://127.0.0.1:${EMS_DEV_DB_PORT:16508}/${EMS_DEV_DB_NAME:ems_up_dev_v120}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+    username: ems_app
+    password: ${EMS_DEV_DB_PASSWORD:}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  sql:
+    init:
+      mode: never
+  thymeleaf:
+    cache: false
+  servlet:
+    multipart:
+      max-file-size: 512MB
+      max-request-size: 513MB
+ems:
+  browser-auto-open: true
+logging:
+  level:
+    com.example.ems: INFO

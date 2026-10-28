@@ -1,34 +1,35 @@
-# Build output
-backend/target/
-
-# Runtime files
-logs/
-*.log
-*.pid
-
-# IntelliJ IDEA
-.idea/
-*.iml
-
-# VS Code
-.vscode/
-
-# Operating system files
-.DS_Store
-Thumbs.db
-
-# Local environment overrides
-.env
-application-local.yml
-
-# Portable release artifacts and private snapshots
-app/
-runtime/
-bootstrap/
-data/
-dist/
-.release-cache/
-.release-work/
-
+/data/
+/logs/
+/dist/
+/runtime/
+/backend/target/
 /target/
+/.release-work/
 /.release-evidence/
+/.idea/workspace.xml
+/server/server.json
+*.partial
+
+/.release-preserved/
+/.rc-work/
+/demo/
+*.dpapi*
+/server/*.backup*
+
+/app/*.jar
+
+# Local-only state, credentials, archives and editor caches
+**/node_modules/
+/.idea/
+.env
+.env.*
+!.env.example
+*.log
+*.backup*
+*.bak
+*.emsbk
+*.pem
+*.p12
+*.pfx
+*.key
+*.zip

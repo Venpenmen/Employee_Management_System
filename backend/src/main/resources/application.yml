@@ -1,46 +1,43 @@
 server:
-  port: 8080
+  address: 127.0.0.1
+  port: ${EMS_DEV_HTTP_PORT:8282}
+  shutdown: graceful
   error:
-    # 异常细节只写服务端日志，页面不暴露底层信息
     include-message: never
-    include-stacktrace: never
-    include-exception: false
-    include-binding-errors: never
   servlet:
     session:
+      persistent: false
       timeout: 30m
-      # 会话只通过 Cookie 传递，不在 URL 中拼接 jsessionid
       tracking-modes: cookie
       cookie:
+        name: EMS120U_DEV
         http-only: true
         same-site: lax
-
+        secure: ${EMS_COOKIE_SECURE:false}
 spring:
+  flyway:
+    enabled: false
   datasource:
-    url: ${EMS_DB_URL:jdbc:mysql://localhost:3306/ems_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&useSSL=false}
-    username: ${EMS_DB_USER:ems_app}
-    password: ${EMS_DB_PASSWORD}
+    hikari:
+      connection-timeout: 3000
+      validation-timeout: 1000
+      maximum-pool-size: 10
+      minimum-idle: 2
+    url: jdbc:mysql://127.0.0.1:${EMS_DEV_DB_PORT:16508}/${EMS_DEV_DB_NAME:ems_up_dev_v120}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+    username: ems_app
+    password: ${EMS_DEV_DB_PASSWORD:}
     driver-class-name: com.mysql.cj.jdbc.Driver
   sql:
     init:
-      mode: always
-      encoding: UTF-8
-      continue-on-error: false
-      # 开发启动：原 12 张业务表 + v1.1.1 个人档案增量表（幂等，不重建已有表）
-      schema-locations:
-        - classpath:schema.sql
-        - classpath:db/migration/profile-v1.1.1.sql
+      mode: never
   thymeleaf:
     cache: false
   servlet:
     multipart:
-      max-file-size: 10MB
-      max-request-size: 10MB
-
+      max-file-size: 512MB
+      max-request-size: 513MB
 ems:
-  browser:
-    auto-open: true
-
+  browser-auto-open: true
 logging:
   level:
     com.example.ems: INFO

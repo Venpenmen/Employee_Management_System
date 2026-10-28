@@ -1,117 +1,53 @@
-# EMS 员工管理系统 v1.1.3
-
-> **v1.1.3 集成状态**：A/B/C 已整合。IDEA/Maven 使用本机开发数据库（默认 localhost:3306/ems_db）；根目录 BAT 当前仍调用便携启动器以保持已有可用实例及数据（默认 13306），dist 发行版也使用独立便携 MySQL。IDEA 与根目录 BAT 尚未统一数据库，后续须先验证开发库账号及迁移方案。源码启动需要 JDK 17、Maven 和已配置的本机 MySQL。仅从 GitHub 克隆的仓库不包含被忽略的运行文件，不能视为完整便携发行包。此次实际验收及限制见 `集成验收报告_v1.1.3.md`，历史验收记录不替代本次结果。
+> **develop 分支：成员 A 的 EMS v1.2.0 开发基线**
 >
-> 本次不提交 `bootstrap/` 业务数据快照、运行环境或生成产物。完整便携发行包须待 B/C 整合并回归后，从获准分发的数据源重新构建；克隆本仓库不等于获得完整便携包。`bootstrap/` 保持忽略，不应通过强制添加将真实业务数据入库。
+> 本分支只包含 A 分工包：工程框架、公共配置/模型、必要依赖闭包、部分已实现功能以及服务器/发布工具源码。
+> 当前 EmsApplication 是无数据库框架入口；完整前端、其余后端功能尚未在本分支交付。
+> 下方原版安装/发布说明作为项目背景保留，不表示此分支已包含完整发行物或已发布 Release。
+>
+> **构建**：JDK 17 与 Maven，在 backend 目录执行 mvn clean verify。
+> **框架运行**：在项目根运行 java -jar backend/target/employee-management-system-1.2.0.jar --server.address=127.0.0.1 --server.port=0 --ems.browser-auto-open=false。
+> 从日志读取随机端口，访问 /health；预期 status=UP、mode=A-framework、database=DISABLED。
+> 详见 [成员 A 交接说明](A_HANDOFF.md)。请勿为验证框架而连接真实 MySQL。
 
+# EMS 员工管理系统 v1.2.0
 
-Spring Boot + Thymeleaf + MySQL 员工管理系统，支持 Windows 免安装分发和 IDEA 开发启动。
+基于 Spring Boot 3.4.5、Thymeleaf、MySQL 8 和 Java 17，提供员工与个人档案、部门职位、考勤、请假审批、工资及日志管理。三级角色为员工、经理、高层。本仓库提供 v1.2.0 正式版的安装、升级与开发说明。
 
-## 普通用户：解压即用
+## 普通 Windows 用户
+下载 Releases 附件 `EMS_v1.2.0_Windows_Portable.zip`，核对 SHA256 后完整解压到普通用户可写的文件夹。内置 Java、MySQL 和运行库，无需安装 JDK/MySQL/Maven。不要直接在 ZIP 中运行。
 
-使用 dist/EMS员工管理系统_v1.1.3_Windows_x64.zip，完整解压到可写目录。
+- 双击“启动服务器.bat”：首次自动建立空业务库，在本机窗口输入高层资料与密码；输入“取消”退出，下次可继续。完成后等待显示访问地址，用浏览器登录。
+- 服务器默认仅本机 `http://127.0.0.1:8283`，不自动打开浏览器。停止使用“停止服务器.bat”。
+- 单机便携使用“启动员工管理系统.bat”，默认 8281，完成首次设置后自动打开网页；使用对应停止 BAT。
+- 已初始化数据库不会重复创建高层。数据保存在各模式 data 下，停止后仍保留。
+- 局域网测试须显式指定本机 IPv4；程序不修改防火墙、VPN、FRP 或系统服务。数据库管理仅允许直接本机 HTTP 或实际 HTTPS。
 
-- 双击“启动员工管理系统.bat”：启动包内数据库及后端，就绪后自动打开网页。
-- 双击“停止员工管理系统.bat”：关闭本包进程，保留业务数据。
-- 无需安装 JDK、Maven、MySQL 或运行库，无需联网、管理员权限及环境变量。
-- 支持 Windows 10/11 x64；每份解压包独立保存数据，默认仅本机访问。
-- 保留发布时的业务记录及账号密码，首次启动导入，后续启动不会覆盖。
+初始化只包含结构、字典和规则，无员工、演示账号或已知默认密码。服务器、便携、开发使用独立库、Cookie、状态、日志和凭据。MySQL 仅回环监听，独立端口 16506–16530；拒绝历史 8083/8183 及旧数据库地址。
 
-运行时使用 app/、runtime/、bootstrap/、launcher/；业务数据保存在 data/，日志在 logs/。
-网页优先使用 8080，冲突时尝试 8081–8090；数据库优先使用 13306，冲突时尝试至 13320。
-实际地址见 logs/launcher.log。首次启动需要等待数据库初始化，不能在 ZIP 内直接运行 BAT。
-备份或移动目录前先停止系统，完整保留 data/。详见“便携版使用说明.txt”。
+## 旧版升级与可选示例
+v1.1.3 用户按 [升级指南](UPGRADE_v1.1.3_to_v1.2.0.md) 操作，不能直接覆盖整个旧目录或复制运行中的 MySQL 数据。
+`EMS_v1.2.0_DemoData.zip` 是独立可选的合成演示库，不自动安装。导入会整体替换当前模式数据库，先导出备份，详见 [演示指南](DEMO_DATABASE_GUIDE.md)。
 
-请分发 dist 中经验证的 ZIP，避免将开发目录中的运行日志、个人配置和使用后的 data 一同压缩。
+## 源码与开发
+GitHub Code → Download ZIP / Source code ZIP 是源码，不能当成免安装运行包。源码 ZIP 为 `EMS_v1.2.0_Source.zip`，不含 runtime、私有数据、日志或凭据。
 
-## 开发者：IDEA 启动保持不变
+使用完整 JDK17 与 Maven 3.9：
+1. 从同版已校验便携 ZIP 取得运行库：`powershell -File launcher/prepare-runtime.ps1 -RuntimeZip 路径`。
+2. `mvn -f backend/pom.xml test package dependency:build-classpath -Dmdep.outputFile=target/dev-classpath.txt`。
+3. `powershell -File launcher/stage-app.ps1`。
+4. “准备开发数据库.bat”创建独立开发实例；将 data/dev/idea.env 变量和 EMS_UPGRADE_ROOT=本工程路径加入 IDEA Run Configuration。
+5. 打开 backend/pom.xml，以完整 JDK17 运行 com.example.ems.EmsApplication，默认回环端口 8282，不加 server/portable Profile。IDEA 图形调试限制见 docs/IDEA调试说明.md。
 
-1. 安装 JDK 17、Maven 3.8+ 和 MySQL 8.0。
-2. IDEA 打开 backend/pom.xml，等待依赖加载。
-3. 在 IDEA Run Configuration 的环境变量中设置 `EMS_DB_URL`、`EMS_DB_USER`、`EMS_DB_PASSWORD`。密码没有默认值；URL 默认指向本机 `3306/ems_db`，用户默认 `ems_app`。命令行启动从当前进程继承相同环境变量。验收时必须显式指定独立测试库，禁止指向业务库。
-4. 直接运行 EmsApplication.main()，无需额外 profile，默认连接本机 MySQL 并自动打开网页。
+完整构建：`powershell -File launcher/build-release.ps1 -MavenExe Maven可执行路径`。脚本运行全部 Maven 测试、生成匹配 JAR/清单并按白名单打包。生成包不等于自动通过所有部署环境验证。
+源码主要目录：backend（Java、模板、迁移和测试）、frontend（静态资源来源）、server（生命周期/升级/备份）、launcher（构建校验）、bootstrap（干净结构和运行库哈希）、app（构建清单及历史迁移）。
 
-命令行开发启动：进入 backend，执行 mvn spring-boot:run。
-普通开发构建：mvn clean package，产物为 employee-management-system-1.1.3.jar。
-发布脚本结束时会恢复 target/classes 中的开发配置，不影响随后在 IDEA 直接运行主类。
+## 备份、恢复与常见问题
+高层“数据库管理”每次需二次验证当前密码，导出使用独立备份口令；导入先预览、核对备份内高层账号，再确认切换。成功后重新登录。自设口令遗失不能解密；不要公开自己的备份或主机 DPAPI 文件。
+- 端口占用：释放本版占用或显式选择空闲端口；不停止未知进程。
+- 初始化取消/校验失败：不会创建半个账号，重新启动继续；已有数据不覆盖。
+- 提示构建不一致：完整解压正确发行包，不关闭校验。
+- 旧数据识别失败：保留现场，按升级指南检查；不要删除 data 强制新建。
 
-源码按 frontend/ 与 backend/ 分目录，前端是 Thymeleaf 服务端模板，构建后合入同一应用。
-当前 IDEA 使用开发配置（3306），根目录 BAT 与 dist 发行包使用 portable 配置及独立数据库（默认 13306）；两者业务数据尚未统一。根目录 BAT 的启动、停止均通过 launcher/start-ems.ps1 与 launcher/stop-ems.ps1。不可同时占用 8080 端口。launcher/start-development.ps1 是可选的开发启动脚本，不由根目录 BAT 自动调用。
+更多版本信息请阅读 [v1.2.0 发布说明](RELEASE_NOTES_v1.2.0.md)、[安装与升级说明](docs/安装与升级.md) 和 [验收记录](RELEASE_VALIDATION_v1.2.0.md)。已完成的安装、升级及自动化验收不等于覆盖所有环境：纯净 Windows、真实第二设备、IDEA 图形界面及正式 HTTPS 部署仍需在实际使用环境中确认。公网访问需自行配置安全的 HTTPS 与访问控制，不应直接公开含真实员工敏感数据的测试服务。
 
-## 发布者：重新生成免安装 ZIP
-
-在开发机器执行 launcher/build-release.ps1。首次构建需要联网下载已固定版本且校验 SHA256 的 Java JRE，并由 Maven解析构建依赖；接收者运行无需联网。
-
-示例（Windows PowerShell）：
-
-    .\launcher\build-release.ps1 -MySqlHome "E:\MySQL\MySQL Server 8.0" -VisualCppRedist "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Redist\MSVC\14.40.33807\x64\Microsoft.VC143.CRT" -VisualCppLicense "C:\Program Files\Microsoft Visual Studio\2022\Community\Licenses\2052\Redist.txt"
-
-MySQL 固定 8.0.46；Java 和运行库版本见 launcher/dependencies-lock.json。源组件目录不得包含修改后的非官方二进制。
-源数据库默认 127.0.0.1:3306，root 用户；必须通过 EMS_SOURCE_DB_PASSWORD 环境变量或 -SourcePassword 参数显式提供密码，不再解析开发 YAML。不要将口令写入提交、命令历史或分享的日志；优先使用环境变量。
-其他连接参数为 -SourceHost、-SourcePort、-SourceUser，源库名固定 ems_db。
-完整发布会同时验收默认开发启动，因此还须设置 `EMS_DB_URL`、`EMS_DB_USER`、`EMS_DB_PASSWORD`，显式指向独立验收库；它们与快照源库凭据分别配置。验收脚本不会再启动源码目录中的已有便携数据库。
-
-发布期间暂停源系统业务写入及结构修改。脚本只读取源库，使用单事务逻辑快照；
-核对导出前后行数，在临时独立数据库恢复并再次核对全部表，然后验证网页可访问及正常停止。
-验证失败不生成新 ZIP。临时源库连接凭据在 finally 中清除，不进入发布包。
-发布 JAR 不包含开发 application.yml 中的数据库凭据，数据快照不包含宿主 MySQL 系统账号。
-
-输出 ZIP 和 SHA256 文件在 dist/。包内保留第三方许可证、运行库文件哈希清单和快照校验信息。
-.release-work/runs/ 保存本次工作目录，完成后默认回收；精简诊断证据保存到 .release-evidence/，均不参与 ZIP。
-重新发布会导出当前本机开发数据库；不会自动合并便携版中产生的数据。
-
-## 功能
-
-三级角色（高层、经理、员工）；招聘、Excel 导入、员工调动和离职；部门、职位与经理任免；
-薪资生成、调整、发布及导出；考勤打卡与修正；请假申请、撤回与审批；操作日志和数据字典。
-
-演示初始账号：高层 260001 / Admin123，经理 260002 / Manager123，员工 260005 / Employee123。
-如果当前数据库中已修改密码，以原账号实际密码为准。
-
-## v1.1 免安装分发（历史）
-
-新增附带运行环境和数据库的 Windows 免安装包、独立 portable 配置、数据快照恢复、
-端口冲突处理、实例身份及就绪验证、正常启停和可重复执行的发布流程。
-保持 IDEA 默认开发启动；保留 v1.0 业务功能，本次不改变薪资及考勤业务规则。
-
-中文路径兼容：运行时临时占用一个 G:–Z: 空闲盘符，正常停止后自动移除。该盘符指向解压目录，不复制数据、不安装服务，也不修改已有盘符。
-
-## 回归验收
-
-发布 ZIP 生成后，可执行 launcher/test-portable.ps1 -OpenBrowser。在中文及空格路径中解压独立副本，清除开发工具 PATH，测试端口冲突、首启中断、业务流程、异常恢复及移动后重启。
-业务测试只修改临时副本；默认使用现有高层账号的 Admin123 密码，若已变更，可传 -AdminPassword。测试副本保留在 .release-work 供诊断。
-
-## v1.1.1 完整个人档案（历史）
-
-个人资料已扩展为：基本信息、联系方式、教育经历、工作经历、技能、证书、修改记录。
-员工、经理和高层均可维护自己的联系方式及扩展档案；经理不能访问他人完整档案，高层可在员工详情查看只读档案。
-姓名、身份证、生日、工号、角色、部门、职位、入职日期和工资标准保持只读。身份证脱敏显示。
-本版不提供头像、附件上传或重要信息变更审批。
-
-联系方式保存有版本检查；若其他页面已保存，当前页面会提示刷新，不会覆盖较新资料。
-所有新表单校验 CSRF，明细编辑和删除校验记录归属，日志仅记录变更字段名称，不写入联系人、地址等完整内容。
-
-数据库升级：
-开发启动自动执行 db/migration/profile-v1.1.1.sql；便携启动在后端前使用包内管理账号执行同一份增量建表 SQL。
-MySQL DDL 会隐式提交，失败不代表已建表回滚。先备份，在独立库定位失败原因并核对现有表结构，再重跑幂等建表 SQL；不能通过删除业务表或重新导入快照恢复。仅“缺少后续表”的中断可通过重跑补齐，已有同名表结构错误必须单独分析。隔离恢复测试入口为 launcher/test-migration-recovery.ps1，它创建唯一测试 schema 并保留证据。
-只新增五张表，旧记录缺失扩展档案时显示未填写；原有员工、工资、考勤、请假等表不重建。
-旧版便携用户：先停止并备份完整旧目录，再以新版 app、launcher、runtime 及 BAT 替换程序文件，完整保留旧 data。
-不要删除或覆盖旧 data，不要通过重新导入 bootstrap 快照升级已有业务数据库。
-新用户使用 dist 中 v1.1.2 ZIP，解压后直接启动。
-发布脚本按全部实际业务表导出和核对快照，源库仍为旧版十二张表时也可打包，首启会自动创建扩展表。
-## v1.1.2 体验优化与稳定性修补
-新增员工分页、档案防丢失和提交保护、统一显示格式、首页快捷入口与待审批数量；加强注册校验、会话轮换、工资字段权限和错误提示。详见 更新说明_v1.1.2.md。无新增数据表，保留 profile-v1.1.1.sql 历史文件名。
-
-## v1.1.3 产物治理
-统一发布入口继续为launcher/build-release.ps1，必需的MySQL与VC运行库参数不变。
-现在每次执行Maven、候选包、HTTP、浏览器、Excel及开发兼容性检查，再发布正式ZIP。
-开发工具通过PATH发现，可传-MavenExe、-JavaExe、-NodeExe、-BrowserExe覆盖；浏览器自动探测Chrome/Edge。
-新任务统一在.release-work/runs/；成功失败默认均只保留.release-evidence/中的精简证据。
--KeepArtifacts显式保留完整副本；停止失败或文件占用时保留并报告，不强删。
-退出码0完成、1主要任务失败、2主要任务成功但清理未完成。证据默认最多20次/200 MiB，单次10 MiB。
-单独运行launcher/test-portable.ps1同样使用独立上下文并执行完整验收，不依赖旧browser-info或残留副本。
-历史版本压缩包和SQL备份保留；真实data、运行库与源码不属于垃圾清理范围。
-详见更新说明_v1.1.3.md、验收记录_v1.1.3.md及空间审计报告_v1.1.3.md。
-
-空间只读报告：运行 launcher/report-space.ps1；加-RequireTarget时要求工程≤1.5 GiB且比冻结基线减少至少60%。
-中断任务默认只报告。显式恢复时使用artifact-common.ps1中的Recover-ArtifactRun，只有旧所有者已退出且路径/锁校验通过才可接管；不可按目录名清理。
+开发工作目录中的 `.release-preserved`、`.release-evidence`、数据库、日志与凭据不属于公开交付内容。发布时应使用 `dist` 内按白名单生成的发行 ZIP 和对应 `SHA256SUMS.txt`，不要直接打包整个本地工程。

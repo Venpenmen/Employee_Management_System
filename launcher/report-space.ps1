@@ -36,7 +36,7 @@ for($pass=0;$pass -lt 3;$pass++){
     $record=[ordered]@{
         recordedAt=(Get-Date).ToString('o');baselineBytes=[long]$baseline.bytes;finalBytes=$bytes;reducedBytes=$reduction;reductionPercent=$percent;
         maxFinalBytes=[long](1.5GB);minimumReductionPercent=60;spacePassed=($bytes -le 1.5GB -and (100.0*$reduction/[double]$baseline.bytes) -ge 60);
-        freeSpaceChangeBytes=([IO.DriveInfo]::new('D:\').AvailableFreeSpace-[long]$baseline.freeBytes);
+        freeSpaceChangeBytes=([IO.DriveInfo]::new([IO.Path]::GetPathRoot($root)).AvailableFreeSpace-[long]$baseline.freeBytes);
         historicalReclaimedBytes=$historical;newTaskReclaimedBytes=$newReclaimed;directories=$directories;
         largestFiles=@($files|Sort-Object Length -Descending|Select-Object -First 20|ForEach-Object{@{path=$_.FullName.Substring($root.Length+1);bytes=$_.Length}});
         retainedTasks=$running;preservedHistoricalFiles=$preserved;

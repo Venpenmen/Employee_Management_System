@@ -1,6 +1,7 @@
 ﻿$ErrorActionPreference='Stop'
 $root=Split-Path -Parent $PSScriptRoot
 . "$PSScriptRoot\artifact-common.ps1"
+$version=Get-ArtifactVersion $root
 $checks=New-Object Collections.Generic.List[string]
 function Check($ok,$text){if(-not $ok){throw "FAILED: $text"};$checks.Add($text);Write-Host "PASS: $text"}
 function Reject($Block,$text){$denied=$false;try{& $Block}catch{$denied=$true};Check $denied $text}
@@ -31,14 +32,14 @@ try{
     [IO.File]::WriteAllText((Join-Path $case.path 'logs/build.log'),'intentional build failure')
     $id=$case.id;$code=Complete-ArtifactRun $case $false 'intentional build failure'
     Check ($code -eq 1 -and -not(Test-Path -LiteralPath $case.path)) 'Failed build preserves evidence and reclaims its full workspace'
-    $proof=Join-Path $root ('.release-evidence/1.1.3/'+$id+'/build.log')
+    $proof=Join-Path $root ('.release-evidence/'+$version+'/'+$id+'/build.log')
     Check ((Test-Path -LiteralPath $proof) -and [IO.File]::ReadAllText($proof).Contains('intentional')) 'Failure log remains readable outside disposable work'
     $case=New-ArtifactRun $root 'injected-stop-failure'
     $fixture=Join-Path $case.path 'fixture'
     [IO.Directory]::CreateDirectory((Join-Path $fixture 'launcher'))|Out-Null
     [IO.Directory]::CreateDirectory((Join-Path $fixture 'data'))|Out-Null
     [IO.File]::WriteAllText((Join-Path $fixture 'launcher/stop-ems.ps1'),'exit 1')
-    Write-ArtifactJson (Join-Path $fixture 'data/instance.json') @{app=$null;database=$null;nativeDrive=''}
+    Write-ArtifactJson (Join-Path $fixture 'data/instance-upgrade.json') @{app=$null;database=$null;nativeDrive=''}
     Register-ArtifactInstance $case $fixture
     $code=Complete-ArtifactRun $case $true
     Check ($code -eq 2 -and (Test-Path -LiteralPath $case.path)) 'Stop failure retains the fixture and returns cleanup-only code 2'
@@ -50,7 +51,7 @@ try{
     [IO.Directory]::CreateDirectory((Join-Path $fixture 'launcher'))|Out-Null
     [IO.Directory]::CreateDirectory((Join-Path $fixture 'data'))|Out-Null
     [IO.File]::WriteAllText((Join-Path $fixture 'launcher/stop-ems.ps1'),"Write-Output 'native diagnostic';exit 0")
-    Write-ArtifactJson (Join-Path $fixture 'data/instance.json') @{app=$null;database=$null;nativeDrive=''}
+    Write-ArtifactJson (Join-Path $fixture 'data/instance-upgrade.json') @{app=$null;database=$null;nativeDrive=''}
     Register-ArtifactInstance $case $fixture
     $code=Complete-ArtifactRun $case $false 'primary failure'
     Check ($code -is [int] -and $code -eq 1) 'Native stop output cannot contaminate or change the primary exit code'
@@ -85,7 +86,7 @@ try{
     [IO.File]::WriteAllText((Join-Path $case.path 'logs/large.log'),('A'*(12MB)))
     [IO.File]::WriteAllText((Join-Path $case.path 'source-client.cnf'),'password=SECRET_TEST_VALUE')
     $null=Complete-ArtifactRun $case $true
-    $dest=Join-Path $root ('.release-evidence/1.1.3/'+$case.id)
+    $dest=Join-Path $root ('.release-evidence/'+$version+'/'+$case.id)
     Check ((Get-ArtifactBytes $dest) -le 10MB -and -not(Test-Path -LiteralPath (Join-Path $dest 'source-client.cnf'))) 'Evidence is capped and excludes credential files'
     Check ([IO.File]::ReadAllText((Join-Path $dest 'large.log')).StartsWith('[Earlier log bytes truncated]')) 'Truncated logs carry an explicit truncation notice'
     $childContext=Join-Path $run.path 'interrupted-context.txt'
@@ -100,7 +101,7 @@ try{
     $child.Kill();$null=$child.WaitForExit(10000)
     $recovered=Recover-ArtifactRun $root $path
     Check ((Complete-ArtifactRun $recovered $false 'owner was intentionally terminated') -eq 1) 'Explicit recovery after real owner termination preserves the failure and removes owned work'
-    $mock=Join-Path $run.path 'mock-project'
+    $mock=Join-Path $run.path 'mock-project' 
     [IO.Directory]::CreateDirectory((Join-Path $mock 'backend'))|Out-Null
     [IO.File]::WriteAllText((Join-Path $mock 'backend/pom.xml'),'<project><version>1.1.3</version></project>')
     $evidenceBase=Join-Path $mock '.release-evidence/1.1.3'
