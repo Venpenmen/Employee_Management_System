@@ -1,13 +1,13 @@
-> **develop 分支：成员 A 的 EMS v1.2.0 开发基线**
+> **develop 分支：EMS v1.2.0 开发基线**
 >
-> 本分支只包含 A 分工包：工程框架、公共配置/模型、必要依赖闭包、部分已实现功能以及服务器/发布工具源码。
-> 当前 EmsApplication 是无数据库框架入口；完整前端、其余后端功能尚未在本分支交付。
-> 下方原版安装/发布说明作为项目背景保留，不表示此分支已包含完整发行物或已发布 Release。
+> 本分支提供工程框架、公共配置与模型、基础服务、数据库迁移及服务器与构建工具源码。
+> 当前 EmsApplication 用于无数据库框架验证；业务模块的启用与端到端验证范围见开发指南。
+> 下方安装与发布章节针对完整发行物；当前源码分支的运行范围与依赖要求以开发指南为准。
 >
 > **构建**：JDK 17 与 Maven，在 backend 目录执行 mvn clean verify。
 > **框架运行**：在项目根运行 java -jar backend/target/employee-management-system-1.2.0.jar --server.address=127.0.0.1 --server.port=0 --ems.browser-auto-open=false。
-> 从日志读取随机端口，访问 /health；预期 status=UP、mode=A-framework、database=DISABLED。
-> 详见 [成员 A 交接说明](A_HANDOFF.md)。请勿为验证框架而连接真实 MySQL。
+> 从日志读取随机端口，访问 /health；预期 status=UP、mode=development-framework、database=DISABLED。
+> 详见 [项目开发指南](DEVELOPMENT_GUIDE.md)。请勿为验证框架而连接真实 MySQL。
 
 # EMS 员工管理系统 v1.2.0
 
