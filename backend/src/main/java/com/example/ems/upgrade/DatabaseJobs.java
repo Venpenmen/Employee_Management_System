@@ -31,7 +31,7 @@ import java.nio.file.*;import java.util.*;import java.util.concurrent.*;import j
  public synchronized String export(SessionUser u,String pass,String hash)throws Exception{notSwitching();password(pass);String id=create("export",u);run(id,"export",new HashMap<>(Map.of("EMS_BACKUP_PASSWORD",pass,"EMS_MAINT_ACTOR_ID",u.id().toString(),"EMS_MAINT_ACTOR_HASH",hash)));return id;}
  public synchronized String preview(SessionUser u,MultipartFile file,String pass,String hash)throws Exception{
   notSwitching();password(pass);if(file.isEmpty()||file.getSize()>512L*1024*1024)throw new IllegalArgumentException("备份文件须为非空且不超过512MiB");
-  String id=create("import",u);try(var in=file.getInputStream()){Files.copy(in,job(id).resolve("input.emsbk"));}
+  String id=create("import",u);try(var in=file.getInputStream()){Files.copy(in,job(id).resolve("input.emsbk"));}catch(IOException | RuntimeException e){try{Files.deleteIfExists(job(id).resolve("input.emsbk"));}catch(IOException cleanup){e.addSuppressed(cleanup);}save(id,"FAILED","备份上传失败，请重新尝试");throw e;}
   run(id,"restore",new HashMap<>(Map.of("EMS_BACKUP_PASSWORD",pass,"EMS_MAINT_ACTOR_ID",u.id().toString(),"EMS_MAINT_ACTOR_HASH",hash)));return id;
  }
  void notSwitching()throws Exception{
@@ -46,7 +46,7 @@ import java.nio.file.*;import java.util.*;import java.util.concurrent.*;import j
  }
  public synchronized void commit(String id,SessionUser actor,String no,String password)throws Exception{
   for(String other:jobs.keySet()){if(!other.equals(id)&&Set.of("QUEUED","RUNNING","SWITCHING").contains(status(other).get("state")))throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT,"另一个数据库任务尚未结束");}
-  var status=status(id);if(!status.get("state").equals("PREVIEW_READY"))throw new IllegalArgumentException("任务尚未校验完成或已经提交");
+  var status=status(id);if(!actor.id().toString().equals(String.valueOf(status.get("actor"))))throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.FORBIDDEN,"任务不属于当前账号");if(!status.get("state").equals("PREVIEW_READY"))throw new IllegalArgumentException("任务尚未校验完成或已经提交");
   invoke(id,"verify-admin",new HashMap<>(Map.of("EMS_RESTORE_NO",no,"EMS_RESTORE_PASSWORD",password)));
   if(!jobs.containsKey(id))jobs.put(id,new ConcurrentHashMap<>(status));save(id,"SWITCHING","进入维护并切换；完成后请使用备份账号重新登录");
   logs.log(actor.id(),"DATABASE_IMPORT_COMMIT","DATABASE",null,"确认数据库切换："+id);
