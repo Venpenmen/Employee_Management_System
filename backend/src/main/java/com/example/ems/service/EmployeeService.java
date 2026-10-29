@@ -1,6 +1,5 @@
 package com.example.ems.service;
 
-import com.example.ems.common.*;
 import com.example.ems.model.SessionUser;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -15,48 +14,43 @@ import java.util.Map;
 
 @Service
 public class EmployeeService {
+    @org.springframework.beans.factory.annotation.Autowired private SessionService sessions;
+    private void guard(Long id,int role){if(sessions==null)throw new IllegalStateException("Session protection is not configured");sessions.guardCurrent(id,role);}
     private final JdbcTemplate jdbc;
     private final LogService logService;
     public EmployeeService(JdbcTemplate jdbc,LogService logService){this.jdbc=jdbc;this.logService=logService;}
 
-    /**
-     * 分页查询员工。总数与列表共用同一组条件（含部门权限），页码越界时修正到末页。
-     * 非高层只能看到本部门，传入的部门条件被忽略；工资合计只返回给高层。
-     */
-    public PageResult page(SessionUser user, EmployeeListQuery query){
+    public record Page(List<Map<String,Object>> items,long total,int page,int pageSize,int totalPages) {}
+    public Page page(SessionUser user,String keyword,Long departmentId,Integer status,int requestedPage,int requestedSize){
+        int size=requestedSize==50||requestedSize==100?requestedSize:20;
         StringBuilder where=new StringBuilder(" WHERE 1=1");
         ArrayList<Object> args=new ArrayList<>();
-        if(!user.isExecutive()){
-            if(user.departmentId()==null) where.append(" AND 1=0");
-            else {where.append(" AND e.department_id=?");args.add(user.departmentId());}
-        } else if(query.getDepartmentId()!=null){where.append(" AND e.department_id=?");args.add(query.getDepartmentId());}
-        if(query.getKeyword()!=null){
-            where.append(" AND (e.name LIKE ? OR e.employee_no LIKE ?)");
-            String like=SqlLike.contains(query.getKeyword());args.add(like);args.add(like);
-        }
-        if(query.getStatus()!=null){where.append(" AND e.employment_status=?");args.add(query.getStatus());}
-        Long total=jdbc.queryForObject("SELECT COUNT(*) FROM employee e"+where,Long.class,args.toArray());
-        Pagination pagination=Pagination.of(query.getPage(),query.getPageSize(),total==null?0:total);
-        ArrayList<Object> pageArgs=new ArrayList<>(args);pageArgs.add(pagination.getPageSize());pageArgs.add(pagination.getOffset());
-        List<Map<String,Object>> rows=jdbc.queryForList("""
-            SELECT e.id,e.employee_no,e.name,e.birth_date,e.phone,e.user_type,e.hire_date,e.employment_status,
-                   d.department_name,p.position_name,(d.base_salary+p.position_salary) basic_salary,e.department_id,e.position_id
-            FROM employee e LEFT JOIN department d ON d.id=e.department_id LEFT JOIN position_info p ON p.id=e.position_id
-            """+where+" ORDER BY e.id LIMIT ? OFFSET ?",pageArgs.toArray());
-        if(!user.isExecutive()) rows.forEach(r->r.remove("basic_salary"));
-        return new PageResult(rows,pagination);
+        if(!user.isExecutive()){where.append(" AND e.department_id=?");args.add(user.departmentId());}
+        if(keyword!=null&&!keyword.isBlank()){where.append(" AND (e.name LIKE ? OR e.employee_no LIKE ?)");args.add("%"+keyword.trim()+"%");args.add("%"+keyword.trim()+"%");}
+        if(departmentId!=null&&user.isExecutive()){where.append(" AND e.department_id=?");args.add(departmentId);}
+        if(status!=null){where.append(" AND e.employment_status=?");args.add(status);}
+        Long count=jdbc.queryForObject("SELECT COUNT(*) FROM employee e"+where,Long.class,args.toArray());
+        long total=count==null?0:count;
+        int pages=(int)Math.max(1,(total+size-1)/size),page=Math.min(Math.max(1,requestedPage),pages);
+        String columns="e.id,e.employee_no,e.name,e.birth_date,e.phone,e.user_type,e.hire_date,e.employment_status,d.department_name,p.position_name,e.department_id,e.position_id";
+        if(user.isExecutive())columns+=",(d.base_salary+p.position_salary) basic_salary";
+        args.add(size);args.add((long)(page-1)*size);
+        var rows=jdbc.queryForList("SELECT "+columns+" FROM employee e LEFT JOIN department d ON d.id=e.department_id LEFT JOIN position_info p ON p.id=e.position_id"+where+" ORDER BY e.id LIMIT ? OFFSET ?",args.toArray());
+        return new Page(rows,total,page,size,pages);
     }
 
     public Map<String,Object> detail(String employeeNo,SessionUser user){
         Map<String,Object> row=getEmployee(employeeNo); Long id=((Number)row.get("id")).longValue();
-        if(!user.isExecutive()&&!user.id().equals(id)) throw new ForbiddenException("员工个人档案仅限本人或高层查看");
+        if(!user.isExecutive()&&!user.id().equals(id)) throw new IllegalArgumentException("员工个人档案仅限本人或高层查看");
         row.put("masked_identity",maskIdentity(String.valueOf(row.get("identity_number"))));row.remove("identity_number");return row;
     }
 
     @Transactional
     public String recruit(String name,String identityNumber,LocalDate birthDate,LocalDate hireDate,Long departmentId,Long positionId,int userType,Long operatorId){
+        guard(operatorId,2);
         if(name==null||name.isBlank())throw new IllegalArgumentException("姓名不能为空");
         if(identityNumber==null||!identityNumber.matches("^[0-9]{17}[0-9Xx]$"))throw new IllegalArgumentException("身份证号格式不正确");
+        jdbc.queryForList("SELECT id FROM employee ORDER BY id FOR UPDATE");
         Integer count=jdbc.queryForObject("SELECT COUNT(*) FROM employee WHERE identity_number=?",Integer.class,identityNumber);
         if(count!=null&&count>0)throw new IllegalArgumentException("身份证号已经存在");
         if(positionId!=null) validatePosition(departmentId,positionId,false);
@@ -67,6 +61,7 @@ public class EmployeeService {
 
     @Transactional
     public void changeDepartment(String employeeNo,Long newDepartmentId,String reason,SessionUser operator){
+        guard(operator.id(),2);
         if(!operator.isExecutive())throw new IllegalArgumentException("只有高层可以跨部门调动员工");
         Map<String,Object> e=getEmployee(employeeNo);Long id=((Number)e.get("id")).longValue();int type=((Number)e.get("user_type")).intValue();
         if(((Number)e.get("employment_status")).intValue()!=1)throw new IllegalArgumentException("只能调动在职员工");
@@ -87,6 +82,7 @@ public class EmployeeService {
 
     @Transactional
     public void changePosition(String employeeNo,Long newPositionId,String reason,SessionUser operator){
+        guard(operator.id(),1);
         if(!operator.isManager())throw new IllegalArgumentException("只有部门经理可以调整员工职位");
         Map<String,Object> e=getEmployee(employeeNo);Long id=((Number)e.get("id")).longValue();
         if(((Number)e.get("employment_status")).intValue()!=1)throw new IllegalArgumentException("只能调整在职员工职位");
@@ -101,19 +97,21 @@ public class EmployeeService {
 
     @Transactional
     public void terminate(String employeeNo,String reason,SessionUser operator){
+        guard(operator.id(),2);
         if(!operator.isExecutive())throw new IllegalArgumentException("只有高层可以办理离职");
         Map<String,Object> e=getEmployee(employeeNo);Long id=((Number)e.get("id")).longValue();
         if(((Number)e.get("employment_status")).intValue()==3)throw new IllegalArgumentException("员工已经离职");
         if(((Number)e.get("user_type")).intValue()==1)throw new IllegalArgumentException("请先更换部门经理再办理离职");
         if(((Number)e.get("user_type")).intValue()==2)throw new IllegalArgumentException("不能通过员工离职功能停用高层");
         jdbc.update("UPDATE employee SET employment_status=3,leave_date=CURDATE() WHERE id=?",id);jdbc.update("UPDATE user_account SET account_status=0 WHERE employee_id=?",id);
+        sessions.revokeLockedAccount(id);
         logService.log(operator.id(),"TERMINATE","EMPLOYEE",id,"工号 "+employeeNo+" 离职："+reason);
     }
 
     public List<Map<String,Object>> profileOptions(){return jdbc.queryForList("SELECT dict_type,item_value,item_label FROM dictionary_item WHERE status=1 ORDER BY dict_type,sort_order");}
     private Map<String,Object> getEmployee(String no){
         try{return jdbc.queryForMap("SELECT e.*,d.department_name,p.position_name,d.base_salary,p.position_salary,(d.base_salary+p.position_salary) basic_salary FROM employee e LEFT JOIN department d ON d.id=e.department_id LEFT JOIN position_info p ON p.id=e.position_id WHERE e.employee_no=?",no);}
-        catch(EmptyResultDataAccessException ex){throw new NotFoundException("工号不存在："+no);}
+        catch(EmptyResultDataAccessException ex){throw new IllegalArgumentException("工号不存在："+no);}
     }
     private void validatePosition(Long departmentId,Long positionId,boolean allowManager){
         if(departmentId==null&&positionId==null)return;if(departmentId==null||positionId==null)throw new IllegalArgumentException("部门和职位必须同时选择");

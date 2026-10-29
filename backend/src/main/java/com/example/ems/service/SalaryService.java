@@ -11,6 +11,8 @@ import java.util.Map;
 
 @Service
 public class SalaryService {
+    @org.springframework.beans.factory.annotation.Autowired private SessionService sessions;
+    private void guard(Long id,int role){if(sessions==null)throw new IllegalStateException("Session protection is not configured");sessions.guardCurrent(id,role);}
     private final JdbcTemplate jdbc;
     private final LogService logService;
     public SalaryService(JdbcTemplate jdbc, LogService logService) { this.jdbc = jdbc; this.logService = logService; }
@@ -25,7 +27,9 @@ public class SalaryService {
 
     @Transactional
     public int settle(String month, Long operatorId) {
+        guard(operatorId,2);
         if (month == null || !month.matches("^\\d{4}-(0[1-9]|1[0-2])$")) throw new IllegalArgumentException("工资月份格式应为YYYY-MM");
+        jdbc.queryForList("SELECT id FROM employee ORDER BY id FOR UPDATE");
         Integer exists = jdbc.queryForObject("SELECT COUNT(*) FROM salary_record WHERE salary_month=?", Integer.class, month);
         if (exists != null && exists > 0) throw new IllegalArgumentException("该月份已经执行过月结");
         int count = jdbc.update("""
@@ -40,21 +44,28 @@ public class SalaryService {
         return count;
     }
 
+    @Transactional
     public void adjust(Long id, BigDecimal reward, BigDecimal subsidy, BigDecimal overtimePay,
                        BigDecimal otherIncome, BigDecimal deduction, BigDecimal otherDeduction, Long operatorId) {
+        guard(operatorId,2);
         for (BigDecimal value : List.of(reward, subsidy, overtimePay, otherIncome, deduction, otherDeduction))
             if (value.signum() < 0) throw new IllegalArgumentException("工资项目不能为负数");
-        jdbc.update("""
+        int affected=jdbc.update("""
             UPDATE salary_record SET reward=?,subsidy=?,overtime_pay=?,other_income=?,deduction=?,other_deduction=?,
             payable_salary=department_base_salary+position_salary+?+?+?+?,
             actual_salary=department_base_salary+position_salary+?+?+?+?-?-? WHERE id=? AND status<3
             """, reward,subsidy,overtimePay,otherIncome,deduction,otherDeduction,
                 reward,subsidy,overtimePay,otherIncome,reward,subsidy,overtimePay,otherIncome,deduction,otherDeduction,id);
+        if(affected==0) throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT,"工资条已发布或不存在，请刷新");
         logService.log(operatorId, "ADJUST_SALARY", "SALARY", id, "调整工资条项目");
     }
 
+    @Transactional
     public void publishMonth(String month, Long operatorId) {
+        guard(operatorId,2);
+        jdbc.queryForList("SELECT id FROM employee ORDER BY id FOR UPDATE");
         int count = jdbc.update("UPDATE salary_record SET status=3,published_time=NOW() WHERE salary_month=? AND status<3", month);
+        if(count==0)throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT,"没有可发布的工资条");
         logService.log(operatorId, "PUBLISH_SALARY", "SALARY", null, "发布" + month + "工资条，共" + count + "条");
     }
 }

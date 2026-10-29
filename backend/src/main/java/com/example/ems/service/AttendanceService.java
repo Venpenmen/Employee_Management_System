@@ -12,6 +12,8 @@ import java.util.*;
 
 @Service
 public class AttendanceService {
+    @org.springframework.beans.factory.annotation.Autowired private SessionService sessions;
+    private void guard(Long id,int role){if(sessions==null)throw new IllegalStateException("Session protection is not configured");sessions.guardCurrent(id,role);}
     private final JdbcTemplate jdbc;
     private final LogService logs;
     public AttendanceService(JdbcTemplate jdbc,LogService logs){this.jdbc=jdbc;this.logs=logs;}
@@ -47,6 +49,7 @@ public class AttendanceService {
 
     @Transactional
     public void checkIn(SessionUser user,String ip){
+        jdbc.queryForObject("SELECT id FROM employee WHERE id=? FOR UPDATE",Long.class,user.id());
         if(!today(user).isEmpty()) throw new IllegalArgumentException("今天已经完成上班打卡，不能重复打卡");
         LocalDateTime now=LocalDateTime.now(); Map<String,Object> r=rule();
         LocalTime start=toLocalTime(r.get("work_start_time")).plusMinutes(((Number)r.get("late_grace_minutes")).longValue());
@@ -58,6 +61,7 @@ public class AttendanceService {
 
     @Transactional
     public void checkOut(SessionUser user,String ip){
+        jdbc.queryForObject("SELECT id FROM employee WHERE id=? FOR UPDATE",Long.class,user.id());
         Map<String,Object> record=today(user);
         if(record.isEmpty()||record.get("check_in_time")==null) throw new IllegalArgumentException("请先完成上班打卡");
         if(record.get("check_out_time")!=null) throw new IllegalArgumentException("今天已经完成下班打卡，不能重复打卡");
@@ -87,6 +91,7 @@ public class AttendanceService {
 
     @Transactional
     public void correct(Long id,int status,String reason,SessionUser operator){
+        guard(operator.id(),2);
         if(!operator.isExecutive()) throw new IllegalArgumentException("只有高层可以修正考勤");
         if(status<1||status>8) throw new IllegalArgumentException("考勤状态无效");
         if(reason==null||reason.isBlank()) throw new IllegalArgumentException("修正原因不能为空");
@@ -96,6 +101,7 @@ public class AttendanceService {
 
     @Transactional
     public void updateRule(LocalTime start,LocalTime end,int lateGrace,int earlyGrace,SessionUser operator){
+        guard(operator.id(),2);
         if(!operator.isExecutive()) throw new IllegalArgumentException("只有高层可以修改考勤规则");
         if(!end.isAfter(start)) throw new IllegalArgumentException("下班时间必须晚于上班时间");
         if(lateGrace<0||lateGrace>120||earlyGrace<0||earlyGrace>120) throw new IllegalArgumentException("允许偏差分钟数必须在0到120之间");

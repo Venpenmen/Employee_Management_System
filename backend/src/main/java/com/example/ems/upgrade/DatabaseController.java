@@ -1,0 +1,16 @@
+package com.example.ems.upgrade;
+import org.springframework.stereotype.Controller;import org.springframework.web.bind.annotation.*;import org.springframework.http.*;
+import org.springframework.core.io.FileSystemResource;import org.springframework.web.multipart.MultipartFile;import jakarta.servlet.http.HttpServletRequest;import java.util.*;
+@Controller public class DatabaseController {
+ private final DatabaseAccess access;private final DatabaseJobs jobs;
+ public DatabaseController(DatabaseAccess a,DatabaseJobs j){access=a;jobs=j;}
+ @GetMapping("/admin/database") public String page(HttpServletRequest r){access.user(r);return "database";}
+ static String hash(HttpServletRequest r){return com.example.ems.service.SessionService.digest(com.example.ems.service.SessionService.token(r.getSession(false)));}
+ static Map<String,Object> ok(Object data){return Map.of("code",200,"msg","成功","data",data);}
+ @PostMapping("/api/admin/database/reauth") @ResponseBody public Map<String,Object> reauth(HttpServletRequest r,@RequestParam String password,@RequestParam String action,@RequestParam(defaultValue="")String object){return ok(Map.of("grant",access.issue(r,password,action,object)));}
+ @PostMapping("/api/admin/database/export") @ResponseBody public Map<String,Object> export(HttpServletRequest r,@RequestParam String grant,@RequestParam String backupPassword)throws Exception{return ok(Map.of("task",jobs.export(access.consume(r,grant,"export",""),backupPassword,hash(r))));}
+ @PostMapping("/api/admin/database/import") @ResponseBody public Map<String,Object> preview(HttpServletRequest r,@RequestParam String grant,@RequestParam String backupPassword,@RequestParam MultipartFile file)throws Exception{return ok(Map.of("task",jobs.preview(access.consume(r,grant,"inspect",""),file,backupPassword,hash(r))));}
+ @PostMapping("/api/admin/database/import/{id}/confirm") @ResponseBody public Map<String,Object> commit(HttpServletRequest r,@PathVariable String id,@RequestParam String grant,@RequestParam String restoredEmployeeNo,@RequestParam String restoredPassword)throws Exception{jobs.commit(id,access.consume(r,grant,"commit",id),restoredEmployeeNo,restoredPassword);return ok(Map.of("task",id));}
+ @GetMapping("/api/admin/database/jobs/{id}") @ResponseBody public Map<String,Object> status(HttpServletRequest r,@PathVariable String id)throws Exception{var user=access.user(r);Map<String,Object> result=new LinkedHashMap<>(jobs.status(id));if(!user.id().toString().equals(result.get("actor").toString()))throw new org.springframework.web.server.ResponseStatusException(HttpStatus.FORBIDDEN,"任务不属于当前账号");return ok(result);}
+ @GetMapping("/api/admin/database/jobs/{id}/download") public ResponseEntity<FileSystemResource> download(HttpServletRequest r,@PathVariable String id)throws Exception{var user=access.user(r);var state=jobs.status(id);if(!user.id().toString().equals(state.get("actor").toString()))throw new org.springframework.web.server.ResponseStatusException(HttpStatus.FORBIDDEN,"任务不属于当前账号");return ResponseEntity.ok().contentType(MediaType.parseMediaType("application/zip")).header("Content-Disposition","attachment; filename=EMS-Backup-"+id+".zip").body(new FileSystemResource(jobs.downloadBundle(id)));}
+}

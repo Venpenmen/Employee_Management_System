@@ -1,0 +1,289 @@
+CREATE TABLE IF NOT EXISTS department (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    department_name VARCHAR(50) NOT NULL UNIQUE,
+    manager_id BIGINT NULL,
+    base_salary DECIMAL(12,2) NOT NULL DEFAULT 0,
+    status TINYINT NOT NULL DEFAULT 0 COMMENT '0筹建 1正常 2停用',
+    description VARCHAR(255),
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS position_info (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    department_id BIGINT NOT NULL,
+    position_name VARCHAR(50) NOT NULL,
+    position_salary DECIMAL(12,2) NOT NULL DEFAULT 0,
+    is_manager_position TINYINT NOT NULL DEFAULT 0,
+    status TINYINT NOT NULL DEFAULT 1,
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_position_department_name (department_id, position_name),
+    KEY idx_position_department (department_id),
+    CONSTRAINT fk_position_department FOREIGN KEY (department_id) REFERENCES department(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS employee (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    employee_no CHAR(6) NOT NULL UNIQUE,
+    name VARCHAR(50) NOT NULL,
+    identity_number VARCHAR(64) NOT NULL UNIQUE,
+    birth_date DATE NOT NULL,
+    phone VARCHAR(20) NULL UNIQUE,
+    department_id BIGINT NULL,
+    position_id BIGINT NULL,
+    user_type TINYINT NOT NULL DEFAULT 0 COMMENT '0员工 1经理 2高层',
+    hire_date DATE NOT NULL,
+    leave_date DATE NULL,
+    employment_status TINYINT NOT NULL DEFAULT 0 COMMENT '0待注册 1在职 2停用 3离职',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    KEY idx_employee_department (department_id),
+    KEY idx_employee_position (position_id),
+    KEY idx_employee_status (employment_status),
+    CONSTRAINT fk_employee_department FOREIGN KEY (department_id) REFERENCES department(id),
+    CONSTRAINT fk_employee_position FOREIGN KEY (position_id) REFERENCES position_info(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS user_account (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    employee_id BIGINT NOT NULL UNIQUE,
+    password_hash VARCHAR(100) NOT NULL,
+    account_status TINYINT NOT NULL DEFAULT 1,
+    failed_login_count INT NOT NULL DEFAULT 0,
+    locked_until DATETIME NULL,
+    last_login_time DATETIME NULL,
+    password_update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_account_employee FOREIGN KEY (employee_id) REFERENCES employee(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS employee_change_record (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    employee_id BIGINT NOT NULL,
+    change_type VARCHAR(30) NOT NULL,
+    old_department_id BIGINT NULL,
+    new_department_id BIGINT NULL,
+    old_position_id BIGINT NULL,
+    new_position_id BIGINT NULL,
+    reason VARCHAR(255),
+    operator_id BIGINT NOT NULL,
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_change_employee (employee_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS salary_record (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    employee_id BIGINT NOT NULL,
+    salary_month CHAR(7) NOT NULL,
+    department_name_snapshot VARCHAR(50) NOT NULL,
+    position_name_snapshot VARCHAR(50) NOT NULL,
+    department_base_salary DECIMAL(12,2) NOT NULL DEFAULT 0,
+    position_salary DECIMAL(12,2) NOT NULL DEFAULT 0,
+    reward DECIMAL(12,2) NOT NULL DEFAULT 0,
+    subsidy DECIMAL(12,2) NOT NULL DEFAULT 0,
+    overtime_pay DECIMAL(12,2) NOT NULL DEFAULT 0,
+    other_income DECIMAL(12,2) NOT NULL DEFAULT 0,
+    deduction DECIMAL(12,2) NOT NULL DEFAULT 0,
+    other_deduction DECIMAL(12,2) NOT NULL DEFAULT 0,
+    payable_salary DECIMAL(12,2) NOT NULL DEFAULT 0,
+    actual_salary DECIMAL(12,2) NOT NULL DEFAULT 0,
+    status TINYINT NOT NULL DEFAULT 0 COMMENT '0草稿 1已计算 2已确认 3已发布 4已作废',
+    operator_id BIGINT NOT NULL,
+    generated_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    published_time DATETIME NULL,
+    UNIQUE KEY uk_salary_employee_month (employee_id, salary_month),
+    KEY idx_salary_month (salary_month),
+    CONSTRAINT fk_salary_employee FOREIGN KEY (employee_id) REFERENCES employee(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS operation_log (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    operator_id BIGINT NULL,
+    operation_type VARCHAR(50) NOT NULL,
+    target_type VARCHAR(30),
+    target_id BIGINT NULL,
+    summary VARCHAR(500),
+    result VARCHAR(20) NOT NULL DEFAULT 'SUCCESS',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_log_operator (operator_id),
+    KEY idx_log_time (create_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS dictionary_item (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    dict_type VARCHAR(50) NOT NULL,
+    item_value VARCHAR(50) NOT NULL,
+    item_label VARCHAR(100) NOT NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    status TINYINT NOT NULL DEFAULT 1,
+    UNIQUE KEY uk_dict_type_value (dict_type, item_value)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS attendance_rule (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    rule_name VARCHAR(50) NOT NULL,
+    work_start_time TIME NOT NULL,
+    work_end_time TIME NOT NULL,
+    late_grace_minutes INT NOT NULL DEFAULT 5,
+    early_grace_minutes INT NOT NULL DEFAULT 0,
+    status TINYINT NOT NULL DEFAULT 1 COMMENT '0停用 1启用',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS attendance_record (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    employee_id BIGINT NOT NULL,
+    attendance_date DATE NOT NULL,
+    check_in_time DATETIME NULL,
+    check_out_time DATETIME NULL,
+    check_in_ip VARCHAR(45) NULL,
+    check_out_ip VARCHAR(45) NULL,
+    attendance_status TINYINT NOT NULL DEFAULT 0 COMMENT '0未完成 1正常 2迟到 3早退 4迟到且早退 5缺卡 6请假 7旷工 8已修正',
+    late_minutes INT NOT NULL DEFAULT 0,
+    early_leave_minutes INT NOT NULL DEFAULT 0,
+    correction_reason VARCHAR(255) NULL,
+    corrected_by BIGINT NULL,
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_attendance_employee_date (employee_id, attendance_date),
+    KEY idx_attendance_date_status (attendance_date, attendance_status),
+    CONSTRAINT fk_attendance_employee FOREIGN KEY (employee_id) REFERENCES employee(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS leave_request (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    request_no VARCHAR(24) NOT NULL UNIQUE,
+    employee_id BIGINT NOT NULL,
+    leave_type VARCHAR(30) NOT NULL,
+    start_time DATETIME NOT NULL,
+    end_time DATETIME NOT NULL,
+    leave_hours DECIMAL(8,2) NOT NULL,
+    reason VARCHAR(500) NOT NULL,
+    status TINYINT NOT NULL DEFAULT 1 COMMENT '1待审批 2已通过 3已驳回 4已撤回 5已取消',
+    current_approver_id BIGINT NULL,
+    submit_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    finish_time DATETIME NULL,
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    KEY idx_leave_employee_time (employee_id, start_time, end_time),
+    KEY idx_leave_approver_status (current_approver_id, status),
+    CONSTRAINT fk_leave_employee FOREIGN KEY (employee_id) REFERENCES employee(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS leave_approval_record (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    leave_request_id BIGINT NOT NULL,
+    approver_id BIGINT NOT NULL,
+    action VARCHAR(20) NOT NULL,
+    before_status TINYINT NULL,
+    after_status TINYINT NOT NULL,
+    opinion VARCHAR(500) NULL,
+    action_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_leave_approval_request (leave_request_id, action_time),
+    CONSTRAINT fk_leave_approval_request FOREIGN KEY (leave_request_id) REFERENCES leave_request(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT IGNORE INTO dictionary_item(dict_type,item_value,item_label,sort_order) VALUES('gender','0','女',1);
+INSERT IGNORE INTO dictionary_item(dict_type,item_value,item_label,sort_order) VALUES('gender','1','男',2);
+INSERT IGNORE INTO dictionary_item(dict_type,item_value,item_label,sort_order) VALUES('marriage','0','未婚',3);
+INSERT IGNORE INTO dictionary_item(dict_type,item_value,item_label,sort_order) VALUES('marriage','1','已婚',4);
+INSERT IGNORE INTO dictionary_item(dict_type,item_value,item_label,sort_order) VALUES('political','0','群众',5);
+INSERT IGNORE INTO dictionary_item(dict_type,item_value,item_label,sort_order) VALUES('political','1','共青团员',6);
+INSERT IGNORE INTO dictionary_item(dict_type,item_value,item_label,sort_order) VALUES('political','2','中共党员',7);
+INSERT IGNORE INTO dictionary_item(dict_type,item_value,item_label,sort_order) VALUES('nation','HAN','汉族',8);
+INSERT IGNORE INTO dictionary_item(dict_type,item_value,item_label,sort_order) VALUES('nation','MONGOL','蒙古族',9);
+INSERT IGNORE INTO dictionary_item(dict_type,item_value,item_label,sort_order) VALUES('nation','HUI','回族',10);
+INSERT IGNORE INTO dictionary_item(dict_type,item_value,item_label,sort_order) VALUES('nation','TIBETAN','藏族',11);
+INSERT IGNORE INTO dictionary_item(dict_type,item_value,item_label,sort_order) VALUES('nation','UYGHUR','维吾尔族',12);
+INSERT IGNORE INTO dictionary_item(dict_type,item_value,item_label,sort_order) VALUES('nation','MIAO','苗族',13);
+INSERT IGNORE INTO dictionary_item(dict_type,item_value,item_label,sort_order) VALUES('nation','YI','彝族',14);
+INSERT IGNORE INTO dictionary_item(dict_type,item_value,item_label,sort_order) VALUES('nation','ZHUANG','壮族',15);
+INSERT IGNORE INTO dictionary_item(dict_type,item_value,item_label,sort_order) VALUES('nation','BUYI','布依族',16);
+INSERT IGNORE INTO dictionary_item(dict_type,item_value,item_label,sort_order) VALUES('nation','KOREAN','朝鲜族',17);
+INSERT IGNORE INTO dictionary_item(dict_type,item_value,item_label,sort_order) VALUES('nation','MANCHU','满族',18);
+INSERT IGNORE INTO dictionary_item(dict_type,item_value,item_label,sort_order) VALUES('leave_type','ANNUAL','年假',19);
+INSERT IGNORE INTO dictionary_item(dict_type,item_value,item_label,sort_order) VALUES('leave_type','SICK','病假',20);
+INSERT IGNORE INTO dictionary_item(dict_type,item_value,item_label,sort_order) VALUES('leave_type','PERSONAL','事假',21);
+INSERT IGNORE INTO dictionary_item(dict_type,item_value,item_label,sort_order) VALUES('leave_type','MARRIAGE','婚假',22);
+INSERT IGNORE INTO dictionary_item(dict_type,item_value,item_label,sort_order) VALUES('leave_type','MATERNITY','产假/陪产假',23);
+INSERT IGNORE INTO dictionary_item(dict_type,item_value,item_label,sort_order) VALUES('leave_type','BEREAVEMENT','丧假',24);
+INSERT IGNORE INTO dictionary_item(dict_type,item_value,item_label,sort_order) VALUES('leave_type','COMPENSATORY','调休',25);
+INSERT IGNORE INTO dictionary_item(dict_type,item_value,item_label,sort_order) VALUES('leave_type','OTHER','其他',26);
+INSERT INTO attendance_rule(rule_name,work_start_time,work_end_time,late_grace_minutes,early_grace_minutes,status) SELECT '默认工作制','09:00:00','18:00:00',5,0,1 WHERE NOT EXISTS(SELECT 1 FROM attendance_rule);
+-- EMS v1.1.1 完整个人档案：增量新增 5 张表（12 -> 17），可重复执行。
+-- 不修改、不重建原有业务表；旧员工缺少扩展档案时页面显示“未填写”。
+-- 开发启动由 spring.sql.init 自动执行；便携启动由 launcher 在后端启动前执行同一文件。
+
+CREATE TABLE IF NOT EXISTS employee_profile (
+    employee_id BIGINT PRIMARY KEY,
+    email VARCHAR(100) NULL,
+    address VARCHAR(255) NULL,
+    emergency_name VARCHAR(50) NULL,
+    emergency_relation VARCHAR(30) NULL,
+    emergency_phone VARCHAR(20) NULL,
+    gender CHAR(1) NULL COMMENT '0女 1男，NULL未填写',
+    biography VARCHAR(1000) NULL,
+    version BIGINT NOT NULL DEFAULT 0 COMMENT '乐观锁版本号，防止旧页面覆盖较新资料',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_profile_employee FOREIGN KEY (employee_id) REFERENCES employee(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS employee_education (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    employee_id BIGINT NOT NULL,
+    school VARCHAR(100) NOT NULL,
+    degree VARCHAR(30) NOT NULL,
+    major VARCHAR(100) NULL,
+    start_month CHAR(7) NOT NULL COMMENT 'YYYY-MM',
+    end_month CHAR(7) NULL COMMENT 'YYYY-MM，在读时为空',
+    current_entry TINYINT NOT NULL DEFAULT 0,
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    KEY idx_education_employee (employee_id),
+    CONSTRAINT fk_education_employee FOREIGN KEY (employee_id) REFERENCES employee(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS employee_experience (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    employee_id BIGINT NOT NULL,
+    company VARCHAR(100) NOT NULL,
+    department VARCHAR(100) NULL,
+    position VARCHAR(100) NULL,
+    start_month CHAR(7) NOT NULL COMMENT 'YYYY-MM',
+    end_month CHAR(7) NULL COMMENT 'YYYY-MM，在职时为空',
+    current_entry TINYINT NOT NULL DEFAULT 0,
+    description VARCHAR(1000) NULL,
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    KEY idx_experience_employee (employee_id),
+    CONSTRAINT fk_experience_employee FOREIGN KEY (employee_id) REFERENCES employee(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS employee_skill (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    employee_id BIGINT NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    proficiency VARCHAR(10) NOT NULL COMMENT '了解/熟悉/熟练/精通',
+    notes VARCHAR(500) NULL,
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    KEY idx_skill_employee (employee_id),
+    CONSTRAINT fk_skill_employee FOREIGN KEY (employee_id) REFERENCES employee(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS employee_certificate (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    employee_id BIGINT NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    issuer VARCHAR(100) NOT NULL,
+    certificate_number VARCHAR(100) NULL,
+    obtained_date DATE NOT NULL,
+    expiry_date DATE NULL COMMENT '长期有效时为空',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    KEY idx_certificate_employee (employee_id),
+    CONSTRAINT fk_certificate_employee FOREIGN KEY (employee_id) REFERENCES employee(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
