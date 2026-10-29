@@ -1,0 +1,15 @@
+<!DOCTYPE html><html lang="zh-CN" xmlns:th="http://www.thymeleaf.org"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>编辑个人资料</title><link rel="stylesheet" href="/css/app.css"></head><body><header th:replace="~{fragments :: nav}"></header><main class="container narrow">
+<div class="page-head"><div><h1>编辑个人资料</h1><p>仅保存您本人的联系方式及补充信息。</p></div></div>
+<section class="panel"><form class="grid-form" method="post" action="/profile" th:object="${form}" data-profile-edit th:attr="data-unsaved=${#fields.hasAnyErrors()}"><input type="hidden" name="_csrf" th:value="${profileCsrf}">
+<input type="hidden" th:field="*{version}">
+<div class="alert error full-row" th:if="${#fields.hasAnyErrors()}"><p th:each="e:${#fields.allErrors()}" th:text="${e}"></p><p>重新载入会丢弃当前未保存输入，请先复制需要保留的内容。</p><a href="/profile/edit" data-discard-reload>重新载入已保存资料</a></div>
+<label>手机号<input type="tel" th:field="*{phone}" maxlength="11" required></label>
+<label>邮箱<input type="email" th:field="*{email}" maxlength="100" ></label>
+<label>通讯地址<input type="text" th:field="*{address}" maxlength="255" ></label>
+<label>紧急联系人<input type="text" th:field="*{emergencyName}" maxlength="50" ></label>
+<label>联系人关系<input type="text" th:field="*{emergencyRelation}" maxlength="30" ></label>
+<label>紧急联系电话<input type="tel" th:field="*{emergencyPhone}" maxlength="11" ></label>
+<label>性别（可不填写）<select th:field="*{gender}"><option value="">未填写</option><option value="0">女</option><option value="1">男</option></select></label>
+<label class="full-row">个人简介<textarea th:field="*{biography}" rows="5" maxlength="1000"></textarea></label>
+<div class="form-actions full-row"><a class="button" href="/profile">取消</a><button class="primary">保存个人资料</button></div>
+</form></section></main><script src="/js/profile-forms.js" defer></script></body></html>

@@ -1,0 +1,10 @@
+<!DOCTYPE html><html lang="zh-CN" xmlns:th="http://www.thymeleaf.org"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>个人档案</title><link rel="stylesheet" href="/css/app.css"></head><body><header th:replace="~{fragments :: nav}"></header><main class="container">
+<div th:replace="~{fragments :: messages}"></div><div class="page-head"><div><h1>个人档案</h1><p>维护联系方式、教育经历和专业能力，重要身份信息仅供查看。</p></div><a class="button" href="/password">修改密码</a></div>
+<nav class="profile-nav" aria-label="档案分区"><a href="#basic">基本信息</a><a href="#contact">联系方式</a><a href="#education">教育经历</a><a href="#experience">工作经历</a><a href="#skills">技能</a><a href="#certificates">证书</a><a href="#history">修改记录</a></nav>
+<section class="panel" id="basic"><h2>基本信息</h2><p class="muted">身份及任职信息由人事管理维护。</p><div class="detail-grid">
+<div><span>姓名</span><b th:text="${employee.name}"></b></div><div><span>工号</span><b th:text="${employee.employee_no}"></b></div>
+<div><span>角色</span><b th:text="${employee.user_type==2?'高层':(employee.user_type==1?'经理':'员工')}"></b></div>
+<div><span>身份证号</span><b th:text="${employee.masked_identity}"></b></div><div><span>出生日期</span><b th:text="${@viewFormats.date(employee.birth_date)}"></b></div>
+<div><span>部门</span><b th:text="${employee.department_name?:'未分配'}"></b></div><div><span>职位</span><b th:text="${employee.position_name?:'未分配'}"></b></div>
+<div><span>入职日期</span><b th:text="${@viewFormats.date(employee.hire_date)}"></b></div><div><span>任职状态</span><b th:text="${employee.employment_status==1?'在职':(employee.employment_status==3?'已离职':(employee.employment_status==0?'待注册':'停用'))}"></b></div>
+<div><span>基本工资标准</span><b th:text="${@viewFormats.money(employee.basic_salary)}"></b></div></div></section><div th:replace="~{profile-sections :: archive}"></div></main><script src="/js/profile-forms.js" defer></script></body></html>
