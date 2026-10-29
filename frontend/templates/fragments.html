@@ -2,7 +2,7 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <body>
 <header th:fragment="nav" class="topbar">
-  <a class="brand" href="/dashboard">EMS 员工管理系统 <small>V1.1.3</small></a>
+  <a class="brand" href="/dashboard">EMS 员工管理系统 <small>V1.2.0</small></a>
   <nav id="main-nav" class="main-nav" aria-label="主导航">
     <a class="nav-link" href="/dashboard">首页</a>
     <a class="nav-link" href="/employees">员工</a>
@@ -29,7 +29,7 @@
       <button class="nav-dropdown-toggle" type="button" aria-expanded="false">薪资与系统 <span aria-hidden="true">▾</span></button>
       <div class="nav-menu">
         <a href="/admin/salaries">薪资管理</a>
-        <a href="/admin/logs">操作日志</a>
+        <a href="/admin/logs">操作日志</a><a href="/admin/database">数据库管理</a>
       </div>
     </div>
   </nav>
@@ -42,7 +42,7 @@
       <a href="/profile">个人资料</a>
       <a href="/password">修改密码</a>
       <div class="nav-menu-divider"></div>
-      <form action="/logout" method="post"><button class="nav-logout" type="submit">退出登录</button></form>
+      <form action="/logout" method="post"><input type="hidden" name="_csrf" th:value="${profileCsrf}"><button class="nav-logout" type="submit">退出登录</button></form>
     </div>
   </div>
   <script>

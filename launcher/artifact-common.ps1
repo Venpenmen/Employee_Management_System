@@ -27,13 +27,21 @@ function Get-ArtifactFiles([string]$Path,[switch]$Strict) {
     }
 }
 function Get-ArtifactBytes([string]$Path) {return [long]((Get-ArtifactFiles $Path|Measure-Object Length -Sum).Sum)}
-function Get-ArtifactVersion([string]$Root){return ([xml][IO.File]::ReadAllText((Join-Path $Root 'backend/pom.xml'))).project.version}
+function Get-ArtifactVersion([string]$Root){
+ $pom=Join-Path $Root 'backend/pom.xml'
+ if(Test-Path -LiteralPath $pom){return ([xml][IO.File]::ReadAllText($pom)).project.version}
+ $manifest=Join-Path $Root 'app/version.json'
+ if(-not(Test-Path -LiteralPath $manifest)){throw 'Project or runtime version manifest is missing'}
+ $version=(Get-Content -LiteralPath $manifest -Raw -Encoding UTF8|ConvertFrom-Json).version
+ if($version -notmatch '^\d+\.\d+\.\d+$'){throw 'Invalid runtime version manifest'}
+ return $version
+}
 function New-ArtifactRun([string]$Root,[string]$Kind,[switch]$KeepArtifacts){
     $rootPath=Assert-ArtifactPath $Root $Root -AllowRoot
     if($Kind -notmatch '^[a-z-]+$'){throw 'Invalid task kind'}
     $runs=Join-Path $rootPath '.release-work/runs';$locks=Join-Path $runs '.locks'
     [IO.Directory]::CreateDirectory($locks)|Out-Null
-    $id=(Get-Date -Format 'yyyyMMdd-HHmmss')+'-'+$Kind+'-'+[guid]::NewGuid().ToString('N')
+    $id=(Get-Date -Format 'yyyyMMdd-HHmmss')+'-'+[guid]::NewGuid().ToString('N').Substring(0,12)
     $path=Join-Path $runs $id
     $null=Assert-ArtifactPath $rootPath $path
     [IO.Directory]::CreateDirectory($path)|Out-Null
@@ -69,7 +77,18 @@ function Stop-ArtifactInstances($Run){
         $fixture=(Get-Content -LiteralPath $record.FullName -Raw -Encoding UTF8|ConvertFrom-Json).fixture
         $null=Assert-ArtifactPath $Run.path $fixture
         if(-not(Test-Path -LiteralPath $fixture)){continue}
-        $stateFile=Join-Path $fixture 'data/instance.json'
+        foreach($mode in @('server','portable','dev')){
+            $modeState=Join-Path $fixture ("data/"+$mode+"/instance-upgrade.json")
+            if(Test-Path -LiteralPath $modeState){
+                $saved=Get-Content -LiteralPath $modeState -Raw -Encoding UTF8|ConvertFrom-Json
+                if(-not $saved.app -and -not $saved.database -and -not $saved.nativeDrive){continue}
+                $null=& "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File (Join-Path $fixture 'server/stop-server.ps1') -Mode $mode
+                if($LASTEXITCODE -ne 0){throw "Instance stop failed: $fixture ($mode)"}
+                $saved=Get-Content -LiteralPath $modeState -Raw -Encoding UTF8|ConvertFrom-Json
+                if($saved.app -or $saved.database -or $saved.nativeDrive){throw "Instance remains active: $fixture ($mode)"}
+            }
+        }
+        $stateFile=Join-Path $fixture 'data/instance-upgrade.json'
         if(Test-Path -LiteralPath $stateFile){
             $null=& "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File (Join-Path $fixture 'launcher/stop-ems.ps1')
             if($LASTEXITCODE -ne 0){throw "Instance stop failed: $fixture"}
@@ -100,7 +119,10 @@ function Remove-ArtifactRun($Run){
     $null=Assert-ArtifactPath $Run.root $path
     # Hold the run lock outside its directory until removal is complete.
     $bytes=Get-ArtifactBytes $path
-    Remove-Item -LiteralPath $path -Recurse -Force -ErrorAction Stop
+    for($attempt=0;$attempt -lt 3;$attempt++){
+        try{Remove-Item -LiteralPath $path -Recurse -Force -ErrorAction Stop;break}
+        catch{if($attempt -ge 2){throw};Start-Sleep -Milliseconds 750}
+    }
     return $bytes
 }
 function Protect-ArtifactText([string]$Text){
@@ -160,7 +182,8 @@ function Limit-ArtifactEvidence([string]$Root){
     if((Get-ArtifactBytes $base) -gt 200MB){throw 'Pinned or unmanaged evidence exceeds the automatic retention budget'}
     }finally{$maintenance.Dispose()}
 }
-function Complete-ArtifactRun($Run,[bool]$Succeeded,[string]$OriginalError=''){
+function Complete-ArtifactRun {
+    [CmdletBinding()]param($Run,[bool]$Succeeded,[string]$OriginalError='')
     $Run.manifest.status=if($Succeeded){'succeeded'}else{'failed'}
     $code=if($Succeeded){0}else{1}
     $Run.manifest.reason=Protect-ArtifactText $OriginalError
@@ -199,12 +222,26 @@ function Resolve-ArtifactTool([string]$Explicit,[string]$Name){
 
 function Invoke-ArtifactNative([string]$Exe,[string[]]$Arguments,[string]$LogFile){
     $ErrorActionPreference="Continue"
+    if([IO.Path]::GetFileName($Exe) -ieq 'powershell.exe'){
+        $out=$LogFile+'.stdout';$err=$LogFile+'.stderr'
+        $quoted=@($Arguments|ForEach-Object {if($_.Contains('"')){throw 'Embedded executable quotes refused'};'"'+$_+'"'}) -join ' '
+        $p=Start-Process -FilePath $Exe -ArgumentList $quoted -WindowStyle Hidden -RedirectStandardOutput $out -RedirectStandardError $err -PassThru
+        try{
+            # Wait only for the launcher, never for its deliberately detached MySQL/JVM descendants.
+            $null=$p.Handle;$p.WaitForExit();$code=$p.ExitCode;if($null -eq $code){throw 'Launcher exit code unavailable'}
+            $text=''
+            foreach($file in @($out,$err)){if(Test-Path -LiteralPath $file){$stream=[IO.File]::Open($file,[IO.FileMode]::Open,[IO.FileAccess]::Read,([IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete));$reader=New-Object IO.StreamReader($stream);try{$text+=$reader.ReadToEnd()+[Environment]::NewLine}finally{$reader.Dispose()}}}
+            [IO.File]::WriteAllText($LogFile,$text,(New-Object Text.UTF8Encoding($false)))
+            Remove-Item -LiteralPath $out,$err -Force -ErrorAction SilentlyContinue
+            return [int]$code
+        }finally{$p.Dispose()}
+    }
     & $Exe @Arguments 2>&1 | Out-File -LiteralPath $LogFile -Encoding UTF8 -Width 240
     return [int]$LASTEXITCODE
 }
 
 function Read-ArtifactTail([string]$Path,[int]$Limit=131072){
-    $stream=[IO.File]::OpenRead($Path)
+    $stream=[IO.File]::Open($Path,[IO.FileMode]::Open,[IO.FileAccess]::Read,([IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete))
     try{
         $header=New-Object byte[] 4;$null=$stream.Read($header,0,4)
         $encoding=if($header[0] -eq 255 -and $header[1] -eq 254){[Text.Encoding]::Unicode}else{[Text.Encoding]::UTF8}

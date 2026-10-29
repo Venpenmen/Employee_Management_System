@@ -23,11 +23,24 @@ public class ExcelService {
 
     public ImportResult importEmployees(MultipartFile file, Long operatorId) {
         if (file == null || file.isEmpty()) throw new IllegalArgumentException("请选择Excel文件");
+        if(file.getSize()>10L*1024*1024) throw new IllegalArgumentException("Excel文件不能超过10MiB");
+        String filename=file.getOriginalFilename();
+        if(filename==null||!filename.toLowerCase(java.util.Locale.ROOT).endsWith(".xlsx")) throw new IllegalArgumentException("只支持不含宏的xlsx文件");
+        try(var zip=new java.util.zip.ZipInputStream(file.getInputStream())){
+            long expanded=0; int entries=0;byte[] buffer=new byte[8192];
+            for(java.util.zip.ZipEntry entry;(entry=zip.getNextEntry())!=null;){
+                if(++entries>2000||entry.getName().toLowerCase(java.util.Locale.ROOT).contains("vbaproject")) throw new IllegalArgumentException("Excel文件包含宏或过多内容");
+                for(int n;(n=zip.read(buffer))!=-1;){expanded+=n;if(expanded>50L*1024*1024)throw new IllegalArgumentException("Excel解压内容超过限制");}
+            }
+            if(entries==0)throw new IllegalArgumentException("Excel文件格式不正确");
+        }catch(java.io.IOException e){throw new IllegalArgumentException("Excel文件格式不正确");}
         int total = 0, success = 0;
         List<String> errors = new ArrayList<>();
         List<String> employeeNos = new ArrayList<>();
         try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {
             Sheet sheet = workbook.getSheetAt(0);
+            if(workbook.getNumberOfSheets()>20||sheet.getLastRowNum()>5000) throw new IllegalArgumentException("Excel最多20个工作表、5000行");
+            for(Row checked:sheet) if(checked.getLastCellNum()>50) throw new IllegalArgumentException("Excel列数超过50列限制");
             DataFormatter fmt = new DataFormatter();
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
@@ -51,9 +64,9 @@ public class ExcelService {
                     }
                     employeeNos.add(employeeService.recruit(name,idNo,birth,hire,deptId,positionId,0,operatorId));
                     success++;
-                } catch (Exception ex) { errors.add("第" + (i+1) + "行：" + rootMessage(ex)); }
+                } catch (SessionService.SessionExpired expired) { throw expired; } catch (Exception ex) { errors.add("第" + (i+1) + "行：" + rootMessage(ex)); }
             }
-        } catch (Exception ex) {
+        } catch (SessionService.SessionExpired expired) { throw expired; } catch (Exception ex) {
             if (total == 0) throw new IllegalArgumentException("Excel读取失败：" + rootMessage(ex));
         }
         return new ImportResult(total, success, errors, employeeNos);
@@ -85,10 +98,8 @@ public class ExcelService {
     }
 
     private LocalDate parseDate(Cell cell, DataFormatter fmt) {
-        boolean numeric = cell != null && (cell.getCellType() == CellType.NUMERIC
-                || (cell.getCellType() == CellType.FORMULA && cell.getCachedFormulaResultType() == CellType.NUMERIC));
-        if (numeric && DateUtil.isCellDateFormatted(cell)) return cell.getLocalDateTimeCellValue().toLocalDate();
+        if (cell != null && cell.getCellType()==CellType.NUMERIC && DateUtil.isCellDateFormatted(cell)) return cell.getLocalDateTimeCellValue().toLocalDate();
         return LocalDate.parse(fmt.formatCellValue(cell).trim());
     }
-    private String rootMessage(Throwable e) { while(e.getCause()!=null) e=e.getCause(); return e.getMessage()==null?e.getClass().getSimpleName():e.getMessage(); }
+    private String rootMessage(Throwable e) { return com.example.ems.web.UserErrors.describe(e).message(); }
 }

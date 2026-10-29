@@ -8,13 +8,16 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
     private final AuthInterceptor authInterceptor;
-    public WebConfig(AuthInterceptor authInterceptor) { this.authInterceptor = authInterceptor; }
+    private final com.example.ems.web.ProfileCsrfInterceptor profileCsrf;
+    public WebConfig(AuthInterceptor authInterceptor, com.example.ems.web.ProfileCsrfInterceptor profileCsrf) {
+        this.authInterceptor = authInterceptor; this.profileCsrf = profileCsrf;
+    }
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        registry.addInterceptor(authInterceptor)
+        registry.addInterceptor(profileCsrf).addPathPatterns("/**").excludePathPatterns("/css/**","/js/**","/health","/error","/favicon.ico").order(1);
+        registry.addInterceptor(authInterceptor).order(0)
                 .addPathPatterns("/**")
-                // /internal/** 是便携版生命周期接口，使用独立的实例令牌校验，不走登录会话
-                .excludePathPatterns("/", "/login", "/register", "/css/**", "/js/**", "/error", "/favicon.ico", "/internal/**");
+                .excludePathPatterns("/", "/login", "/register", "/css/**", "/js/**", "/error", "/favicon.ico", "/health", "/internal/portable/**");
     }
 }

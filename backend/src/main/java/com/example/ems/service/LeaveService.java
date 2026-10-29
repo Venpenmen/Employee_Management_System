@@ -14,6 +14,8 @@ import java.util.*;
 
 @Service
 public class LeaveService {
+    @org.springframework.beans.factory.annotation.Autowired private SessionService sessions;
+    private void guard(Long id,int role){if(sessions==null)throw new IllegalStateException("Session protection is not configured");sessions.guardCurrent(id,role);}
     private final JdbcTemplate jdbc; private final LogService logs;
     public LeaveService(JdbcTemplate jdbc,LogService logs){this.jdbc=jdbc;this.logs=logs;}
 
@@ -32,6 +34,7 @@ public class LeaveService {
     public String submit(String type,LocalDateTime start,LocalDateTime end,String reason,SessionUser u){
         if(start==null||end==null||!end.isAfter(start)) throw new IllegalArgumentException("结束时间必须晚于开始时间");
         if(reason==null||reason.isBlank()) throw new IllegalArgumentException("请假原因不能为空");
+        jdbc.queryForObject("SELECT id FROM employee WHERE id=? FOR UPDATE",Long.class,u.id());
         Integer valid=jdbc.queryForObject("SELECT COUNT(*) FROM dictionary_item WHERE dict_type='leave_type' AND item_value=? AND status=1",Integer.class,type);
         if(valid==null||valid==0) throw new IllegalArgumentException("请假类型无效");
         Integer overlap=jdbc.queryForObject("SELECT COUNT(*) FROM leave_request WHERE employee_id=? AND status IN(1,2) AND start_time<? AND end_time>?",Integer.class,u.id(),end,start);
@@ -50,13 +53,24 @@ public class LeaveService {
 
     @Transactional
     public void decide(String requestNo,boolean approve,String opinion,SessionUser u){
-        Map<String,Object> r=get(requestNo);Long id=((Number)r.get("id")).longValue();
+        guard(u.id(),1);
+        Map<String,Object> r=jdbc.queryForMap("SELECT * FROM leave_request WHERE request_no=? FOR UPDATE",requestNo);Long id=((Number)r.get("id")).longValue();
+        if(((Number)r.get("status")).intValue()!=1) throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT,"该申请已被处理");
         if(r.get("current_approver_id")==null||!u.id().equals(((Number)r.get("current_approver_id")).longValue())) throw new IllegalArgumentException("您不是当前审批人");
-        if(((Number)r.get("status")).intValue()!=1) throw new IllegalArgumentException("该申请已被处理");
+        Long applicant=((Number)r.get("employee_id")).longValue();
+        if(applicant.equals(u.id()))throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.FORBIDDEN,"不得审批自己的申请");
+        var actor=jdbc.queryForMap("SELECT user_type,department_id FROM employee WHERE id=? FOR UPDATE",u.id());
+        Long actorDept=actor.get("department_id")==null?null:((Number)actor.get("department_id")).longValue();
+        if(((Number)actor.get("user_type")).intValue()!=u.userType()||!java.util.Objects.equals(actorDept,u.departmentId()))throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT,"权限或部门已经变化，请刷新");
+        if(u.isManager()){
+            var person=jdbc.queryForMap("SELECT user_type,department_id FROM employee WHERE id=?",applicant);
+            Long dept=person.get("department_id")==null?null:((Number)person.get("department_id")).longValue();
+            if(((Number)person.get("user_type")).intValue()!=0||actorDept==null||!actorDept.equals(dept))throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.FORBIDDEN,"只能审批本部门普通员工的申请");
+        }
         if(!approve&&(opinion==null||opinion.isBlank())) throw new IllegalArgumentException("驳回时必须填写审批意见");
         int next=approve?2:3;
         int updated=jdbc.update("UPDATE leave_request SET status=?,current_approver_id=NULL,finish_time=NOW() WHERE id=? AND status=1 AND current_approver_id=?",next,id,u.id());
-        if(updated==0) throw new IllegalArgumentException("申请已被其他人处理，请刷新页面");
+        if(updated==0) throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT,"申请已被其他人处理，请刷新页面");
         jdbc.update("INSERT INTO leave_approval_record(leave_request_id,approver_id,action,before_status,after_status,opinion) VALUES(?,?,?,?,?,?)",id,u.id(),approve?"APPROVE":"REJECT",1,next,opinion);
         if(approve) markLeaveAttendance(((Number)r.get("employee_id")).longValue(),toLocalDateTime(r.get("start_time")).toLocalDate(),toLocalDateTime(r.get("end_time")).toLocalDate());
         logs.log(u.id(),approve?"APPROVE_LEAVE":"REJECT_LEAVE","LEAVE",id,(approve?"通过":"驳回")+"请假申请："+requestNo);
@@ -64,7 +78,7 @@ public class LeaveService {
 
     @Transactional
     public void withdraw(String requestNo,SessionUser u){
-        Map<String,Object> r=get(requestNo);Long id=((Number)r.get("id")).longValue();
+        Map<String,Object> r=jdbc.queryForMap("SELECT * FROM leave_request WHERE request_no=? FOR UPDATE",requestNo);Long id=((Number)r.get("id")).longValue();
         if(!u.id().equals(((Number)r.get("employee_id")).longValue())) throw new IllegalArgumentException("只能撤回自己的申请");
         if(jdbc.update("UPDATE leave_request SET status=4,current_approver_id=NULL,finish_time=NOW() WHERE id=? AND status=1",id)==0) throw new IllegalArgumentException("只有待审批申请可以撤回");
         jdbc.update("INSERT INTO leave_approval_record(leave_request_id,approver_id,action,before_status,after_status,opinion) VALUES(?,?, 'WITHDRAW',1,4,'申请人撤回')",id,u.id());
