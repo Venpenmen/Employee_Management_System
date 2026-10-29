@@ -1,6 +1,6 @@
 # 前端（frontend）
 
-本目录保存 EMS V1.1.3 的界面资源，使用 Thymeleaf 服务端模板。
+本目录保存 EMS V1.2.0 的界面资源，使用 Thymeleaf 服务端模板。
 
 ## 目录
 
