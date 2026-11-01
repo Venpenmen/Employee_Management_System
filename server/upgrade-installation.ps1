@@ -1,4 +1,4 @@
-﻿param([Parameter(Mandatory=$true)][string]$LegacyRoot,[ValidateSet('server','portable','dev')][string]$Mode='server',[ValidateSet('ems_db','ems_server_v120','ems_portable_v120','ems_dev_v120')][string]$LegacySchema)
+﻿param([Parameter(Mandatory=$true)][string]$LegacyRoot,[ValidateSet('server','portable','dev')][string]$Mode='server',[ValidateSet('ems_db','ems_server_v121','ems_portable_v121','ems_dev_v121')][string]$LegacySchema)
 $ErrorActionPreference='Stop'
 . "$PSScriptRoot\runtime-common.ps1" -Mode $Mode
 $run=New-ArtifactRun $script:EmsRoot 'legacy-upgrade';$lock=$null;$coldProcess=$null;$legacyConfig=$null;$success=$false;$failure='';$state=$null;$oldEnv=@{}
@@ -44,7 +44,7 @@ try{
  $plain=Join-Path $oldData 'credentials.json';$protected=Join-Path $oldData 'credentials.dpapi.json'
  if(Test-Path -LiteralPath $protected){$creds=Get-Content -LiteralPath $protected -Raw -Encoding UTF8|ConvertFrom-Json;$ptr=[Runtime.InteropServices.Marshal]::SecureStringToBSTR((ConvertTo-SecureString $creds.root));try{$legacyPassword=[Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr)}finally{[Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr)}}
  elseif(Test-Path -LiteralPath $plain){$legacyPassword=(Get-Content -LiteralPath $plain -Raw -Encoding UTF8|ConvertFrom-Json).root}else{throw 'Legacy credential metadata is unavailable'}
- $port=Find-FreePort 16506 16530 16530
+ $port=Find-FreePort 16606 16630 16630
  $legacyConfig=Join-Path $run.path 'legacy-client.cnf'
  Write-Utf8 $legacyConfig ((@('[client]','host=127.0.0.1',('port='+$port),'protocol=TCP','user=root',('password="'+$legacyPassword.Replace('\','\\').Replace('"','\"')+'"')) -join [Environment]::NewLine))
  $log=Get-NativePath (Join-Path $run.path 'cold-mysql.log')
@@ -57,14 +57,14 @@ try{
  if(-not $up){throw 'Cold copy could not start; original data was not touched'}
  if(-not $LegacySchema){
   $names=(Invoke-EmsTool $script:MysqlExe @("--defaults-file=$legacyConfig",'-N','-e','SHOW DATABASES')) -split '\r?\n'
-  $matches=@($names|Where-Object {$_ -in @('ems_db','ems_server_v120','ems_portable_v120','ems_dev_v120')})
+  $matches=@($names|Where-Object {$_ -in @('ems_db','ems_server_v121','ems_portable_v121','ems_dev_v121')})
   if($matches.Count -ne 1){throw 'Select LegacySchema explicitly; ambiguous legacy ownership'}
   $LegacySchema=$matches[0]
  }
  $job=Join-Path $script:DataDir ('database-jobs/'+[Guid]::NewGuid().ToString());New-Item -ItemType Directory -Path $job -Force|Out-Null
  $pass=New-EmsSecret
  Write-Utf8 (Join-Path $job 'recovery.key.dpapi') (ConvertFrom-SecureString (ConvertTo-SecureString $pass -AsPlainText -Force))
- $sourceVersion=if($old -and $old.version -in @('1.1.3','1.2.0')){[string]$old.version}else{'legacy-unversioned'}
+ $sourceVersion=if($old -and $old.version -in @('1.1.3','1.2.1')){[string]$old.version}else{'legacy-unversioned'}
  $vars=@{EMS_SOURCE_VERSION=$sourceVersion;EMS_LEGACY_PORT=[string]$port;EMS_LEGACY_SCHEMA=$LegacySchema;EMS_LEGACY_PASSWORD=$legacyPassword;EMS_BACKUP_PASSWORD=$pass;EMS_MAINT_ROOT=$script:EmsRoot;EMS_MAINT_JOB=$job}
  foreach($key in $vars.Keys){$oldEnv[$key]=[Environment]::GetEnvironmentVariable($key,'Process');[Environment]::SetEnvironmentVariable($key,$vars[$key],'Process')}
  Invoke-EmsTool $script:JavaExe @('-Dloader.main=com.example.ems.upgrade.LegacyExportMain','-cp',$script:JarFile,'org.springframework.boot.loader.launch.PropertiesLauncher') -TimeoutSeconds 600|Write-Host
@@ -76,7 +76,7 @@ try{
  if($count -ne 0){throw 'Target already contains employees; no automatic overwrite'}
  Invoke-EmsMaintenance 'restore' $state $job
  $result=Get-Content -LiteralPath (Join-Path $job 'result.json') -Raw -Encoding UTF8|ConvertFrom-Json
- if($result.target -notmatch ('^ems_up_'+$Mode+'_v120_g[a-f0-9]{12}$')){throw 'Unexpected target'}
+ if($result.target -notmatch ('^ems_next_'+$Mode+'_v121_g[a-f0-9]{12}$')){throw 'Unexpected target'}
  Invoke-EmsTool $script:MysqlExe @("--defaults-file=$cnf",'-e',"GRANT SELECT,INSERT,UPDATE,DELETE ON $($result.target).* TO 'ems_app'@'127.0.0.1';")|Out-Null
  Write-Utf8 "$script:DataDir/active-schema.tmp" $result.target;Move-Item -LiteralPath "$script:DataDir/active-schema.tmp" -Destination "$script:DataDir/active-schema" -Force
  Write-Utf8 "$script:DataDir/legacy-source.sha256" $sourceHash

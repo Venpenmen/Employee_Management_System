@@ -7,7 +7,7 @@ $shell="$env:SystemRoot/System32/WindowsPowerShell/v1.0/powershell.exe"
 try{
  New-Item -ItemType Directory -Path $fixture|Out-Null
  foreach($name in @('runtime','app','bootstrap','server','launcher')){Copy-Item -LiteralPath (Join-Path $root $name) -Destination (Join-Path $fixture $name) -Recurse}
- Write-ArtifactJson "$fixture/test-fixture.json" @{run=$run.id;version='1.2.0';buildId='v1.2.0-rc1'}
+ Write-ArtifactJson "$fixture/test-fixture.json" @{run=$run.id;version='1.2.1';buildId='v1.2.1-next-rc2'}
  Register-ArtifactInstance $run $fixture
  $env:EMS_TEST_PASSWORD='Qa'+[Guid]::NewGuid().ToString('N')+'7'
  foreach($step in @(@('initialize',"$fixture/server/initialize-server.ps1",@('-DatabaseOnly')),@('seed',"$root/launcher/seed-server-test.ps1",@('-Fixture',$fixture)))){

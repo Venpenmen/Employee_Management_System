@@ -22,11 +22,12 @@ public final class LocalSetup {
   check(!name.isBlank()&&name.length()<=50,"姓名不能为空且不能超过50个字符");
   check(id.matches("[0-9]{17}[0-9X]"),"身份证号必须为18位，最后一位可以是X");
   check(phone.matches("1[3-9][0-9]{9}"),"手机号必须为有效格式的11位中国大陆手机号");
-  check(pass.length()>=8&&pass.length()<=72&&pass.matches("(?s).*[A-Za-z].*")&&pass.matches("(?s).*[0-9].*"),"密码必须为8～72位且同时包含英文字母和数字");
+  check(pass.length()>=8&&pass.getBytes(java.nio.charset.StandardCharsets.UTF_8).length<=72&&pass.matches("(?s).*[A-Za-z].*")&&pass.matches("(?s).*[0-9].*"),"密码至少8位、最多72字节且同时包含英文字母和数字");
   LocalDate birth=date("EMS_SETUP_BIRTH","出生日期"),hire=date("EMS_SETUP_HIRE","入职日期");
   check(!birth.isAfter(LocalDate.now()),"出生日期不能晚于今天");
   check(!hire.isBefore(birth),"入职日期不能早于出生日期");
-  try(Connection c=DriverManager.getConnection(env("EMS_SETUP_URL"),"ems_app",env("EMS_DB_PASSWORD"))){
+  String setupUrl=env("EMS_SETUP_URL");com.example.ems.upgrade.Schema.safeUrl(setupUrl);
+  try(Connection c=DriverManager.getConnection(setupUrl,"ems_app",env("EMS_DB_PASSWORD"))){
    try(Statement s=c.createStatement();ResultSet lock=s.executeQuery("SELECT GET_LOCK('ems-first-setup',10)")){lock.next();if(lock.getInt(1)!=1)throw new IllegalStateException("初始化锁获取失败，请稍后重试");}
    c.setAutoCommit(false);
    try{

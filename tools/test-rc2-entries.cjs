@@ -1,0 +1,82 @@
+const fs=require('node:fs'),path=require('node:path'),http=require('node:http'),https=require('node:https'),crypto=require('node:crypto'),{execFileSync}=require('node:child_process');
+const [fixture,out]=process.argv.slice(2),password=process.env.EMS_TEST_PASSWORD,ps=process.env.EMS_TEST_PWSH;
+const data=path.join(fixture,'data/complete-rc2/server'),state=JSON.parse(fs.readFileSync(path.join(data,'instance-upgrade.json')));let runtime=JSON.parse(fs.readFileSync(path.join(data,'network-runtime.json')));
+if(!fs.existsSync(path.join(fixture,'test-fixture.json'))||state.installRoot!==fixture||state.buildId!=='v1.2.1-complete-rc2'||runtime.pid!==state.app.id||runtime.remoteState!=='READY')throw Error('Owned healthy RC2 fixture required');
+const checks=[],sessions=[];function check(ok,msg){if(!ok)throw Error(msg);checks.push(msg);console.log('PASS '+msg)}
+const agent=new https.Agent({ca:fs.readFileSync(path.join(data,'tls/anchor.pem')),rejectUnauthorized:true});
+function request(tls,host,route,fields,cookie='',extra={},sse=false){return new Promise((resolve,reject)=>{const body=fields?new URLSearchParams(fields).toString():'';const req=(tls?https:http).request({hostname:'127.0.0.1',port:tls?runtime.httpsPort:state.httpPort,path:route,method:fields?'POST':'GET',agent:tls?agent:false,servername:tls?'ems-test.invalid':undefined,headers:{Host:host,Cookie:cookie,...(fields?{'Content-Type':'application/x-www-form-urlencoded','Content-Length':Buffer.byteLength(body),Origin:(tls?'https':'http')+'://'+host}:{}),...extra}},res=>{if(sse){resolve({status:res.statusCode,headers:res.headers,text:''});res.destroy();return;}let chunks=[],size=0;res.on('data',b=>{size+=b.length;if(size>1024*1024){res.destroy(Error('Oversized response'));return}chunks.push(b)});res.on('error',reject);res.on('end',()=>{const bytes=Buffer.concat(chunks),text=bytes.toString();let json;try{json=JSON.parse(text)}catch{}resolve({status:res.statusCode,headers:res.headers,text,bytes,json})})});req.setTimeout(20000,()=>req.destroy(Error('Timeout')));req.on('error',reject);req.end(body)})}
+class Client{
+ constructor(tls,host){this.tls=tls;this.host=host|| (tls?'ems-test.invalid':'127.0.0.1:'+state.httpPort);this.cookies={};this.csrf='';sessions.push(this)}
+ cookie(){return Object.entries(this.cookies).map(([k,v])=>k+'='+v).join('; ')}
+ async req(route,fields,extra={},csrf=true){const r=await request(this.tls,this.host,route,fields?{...fields,...(csrf?{_csrf:this.csrf}:{})}:null,this.cookie(),extra);for(const line of r.headers['set-cookie']||[]){let pair=line.split(';')[0],i=pair.indexOf('=');this.cookies[pair.slice(0,i)]=pair.slice(i+1)}for(const tag of r.text.matchAll(/<input\b[^>]*>/g)){if(/name="?_csrf"?/.test(tag[0])){const match=tag[0].match(/value="([^"]+)"/);if(match)this.csrf=match[1]}}return r;}
+ async admit(){const gate=await this.req('/local-entry');check(gate.status===200&&gate.text.includes('本机入口授权'),'Safe HTTP requires local admission page');check(this.csrf.length>30,'Local admission CSRF parsed without disclosure');const code=crypto.randomBytes(24).toString('base64url'),digest=crypto.createHash('sha256').update(code).digest('hex'),nonce=crypto.randomUUID(),expires=Date.now()+60000;
+  // Test-owned DPAPI only, captured in memory and never sent to logs/evidence.
+  const expression="$v=Get-Content -LiteralPath '"+path.join(data,'credentials-upgrade.dpapi.json').replaceAll("'","''")+"' -Raw|ConvertFrom-Json;$p=[Runtime.InteropServices.Marshal]::SecureStringToBSTR((ConvertTo-SecureString $v.control));try{[Console]::Write([Runtime.InteropServices.Marshal]::PtrToStringBSTR($p))}finally{[Runtime.InteropServices.Marshal]::ZeroFreeBSTR($p)}";
+  const control=execFileSync(ps,['-NoProfile','-Command',expression],{encoding:'utf8',windowsHide:true});const identity=[runtime.pid,runtime.startTicks,runtime.exe,runtime.installRoot,runtime.runtimeMode,runtime.bootId,runtime.generation].join('|');check(crypto.createHmac('sha256',control).update(identity).digest('hex')===runtime.identityMac,'Private runtime identity is authenticated for the current process');const canonical=[runtime.pid,runtime.bootId,runtime.generation,nonce,expires,digest].join('|'),mac=crypto.createHmac('sha256',control).update(canonical).digest('hex');fs.writeFileSync(path.join(data,'local-entry-request.json'),JSON.stringify({pid:runtime.pid,bootId:runtime.bootId,generation:runtime.generation,nonce,expires,digest,mac}));check(!fs.readFileSync(path.join(data,'local-entry-request.json'),'utf8').includes(code),'Local admission file has no clear code');
+  const admitted=await this.req('/local-entry',{code});check(admitted.status===302&&new URL(admitted.headers.location,'http://'+this.host).pathname==='/login','Signed single-use local admission succeeds (HTTP '+admitted.status+'; '+(admitted.json?.msg||'redirect')+')');
+ }
+ async login(no='260001'){const page=await this.req('/login');check(page.status===200,'Login page available after entry validation');const old=this.cookie();const r=await this.req('/login',{employeeNo:no,password});check(r.status===302&&new URL(r.headers.location,(this.tls?'https':'http')+'://'+this.host).pathname==='/dashboard','Actual JDBC account login succeeds (HTTP '+r.status+')');check(this.cookie()!==old,'Login rotates the entry-scoped session ID');check((await this.req('/api/me')).status===200,'Actual authenticated API is usable');const header=(page.headers['set-cookie']||[]).join(';');if(header)check(/HttpOnly/i.test(header)&&/SameSite=Lax/i.test(header),'Session cookie has HttpOnly and SameSite');return this;}
+ async grant(action='export'){const r=await this.req('/api/admin/database/reauth',{password,action});check(r.status===200,'Current executive can obtain single-use database authorization');return r.json.data.grant;}
+}
+async function exportBackup(client,grant){const r=await client.req('/api/admin/database/export',{grant,backupPassword:'SyntheticEntryBackup92!'});check(r.status===200,'Authorized database export accepted on trusted entry');const id=r.json.data.task;for(let i=0;i<100;i++){await new Promise(r=>setTimeout(r,500));const job=await client.req('/api/admin/database/jobs/'+id);if(job.status!==200)throw Error('Lost legitimate export session');if(job.json.data.state==='FAILED')throw Error('Owned export worker failed');if(job.json.data.state==='SUCCEEDED'){const download=await client.req('/api/admin/database/jobs/'+id+'/download');check(download.status===200&&download.bytes.subarray(0,2).toString()==='PK','Own RC2 maintenance worker and encrypted ZIP download succeed');return}}throw Error('Export timed out')}
+(async()=>{
+ check((await request(false,'127.0.0.1:'+state.httpPort,'/api/me')).status===403,'Safe anonymous HTTP API denied before account authentication');
+ check((await request(false,'localhost:'+state.httpPort,'/health')).status===200,'localhost health works without a certificate or admission code');
+ check((await request(false,'127.0.0.1:'+state.httpPort,'/login',null,'',{'X-Forwarded-Proto':'https','X-Forwarded-For':'127.0.0.1'})).status===302,'Spoofed forwarding headers cannot bypass local admission');
+ const local=new Client(false);await local.admit();await local.login();
+ const remote=await new Client(true).login('260002');
+ check(local.cookie().startsWith('EMS121RC2_SERVER_SAFE_HTTP=')&&remote.cookie().startsWith('EMS121RC2_SERVER_SAFE_TLS='),'Native connectors issue separate cookie names');
+ const pre=new Client(true),prePage=await pre.req('/login');check((prePage.headers['set-cookie']||[]).some(c=>c.split(';').some(v=>v.trim().toLowerCase()==='secure')),'Native HTTPS cookie is Secure');
+ const foreignHttp='EMS121RC2_SERVER_SAFE_HTTP='+remote.cookie().split('=')[1];
+ check((await request(false,local.host,'/api/me',null,foreignHttp)).status===401,'Renamed HTTPS SID rejected by HTTP before auth/session consumers');
+ check((await request(false,local.host,'/logout',{_csrf:remote.csrf},foreignHttp)).status===401,'Cross-entry logout cannot revoke the victim session');
+ check((await remote.req('/api/me')).status===200&&(await local.req('/api/me')).status===200,'Both legitimate different-account sessions survive cross-entry attacks');
+ check((await request(false,local.host,'/api/security/events',null,foreignHttp,{},true)).status===401,'SSE cannot inherit a foreign-entry session');
+ check((await request(true,'ems-test.invalid','/api/me',null,'EMS121RC2_SERVER_SAFE_TLS='+local.cookie().split('=')[1])).status===401,'Renamed HTTP SID rejected by HTTPS');
+ check((await request(false,local.host,'/api/me;jsessionid='+remote.cookie().split('=')[1])).status!==200,'URL session ID cannot reuse a foreign session');
+ check((await request(false,local.host,'/api/me',null,'EMS121RC2_SERVER_SAFE='+remote.cookie().split('=')[1])).status===403,'Base-name cookie is ignored and admission still required');
+ check((await request(false,local.host,'/api/me',null,'EMS121RC2_SERVER_SAFE_HTTP='+pre.cookie().split('=')[1])).status===401,'Preauthentication TLS session cannot cross into HTTP');
+ check((await pre.req('/login')).status===200,'Rejected replay did not destroy the legitimate preauthentication session');
+ check((await local.req('/api/admin/database/export',{grant:'invalid-single-use-grant',backupPassword:'SyntheticEntryBackup92!'})).status===403,'Database export still requires single-use reauthorization');
+ check((await request(false,local.host,'/api/admin/database/reauth',{password,action:'export',_csrf:remote.csrf},local.cookie())).status===403,'CSRF from another entry does not authorize a local protected write');
+ await exportBackup(local,await local.grant());
+ const tlsAdmin=await new Client(true).login();check((await local.req('/api/me')).status===401,'Legitimate new login on another entry replaces old account session');
+ check((await request(false,local.host,'/logout',{_csrf:local.csrf},local.cookie())).status!==200,'Expired old device cannot perform logout as an active writer');
+ check((await tlsAdmin.req('/api/me')).status===200,'Old-device request does not revoke the new effective session');
+ const grant=await tlsAdmin.grant();check((await request(false,local.host,'/api/admin/database/export',{grant,backupPassword:'SyntheticEntryBackup92!',_csrf:tlsAdmin.csrf},'EMS121RC2_SERVER_SAFE_HTTP='+tlsAdmin.cookie().split('=')[1])).status===401,'Foreign-entry replay cannot consume the valid database grant');await exportBackup(tlsAdmin,grant);
+ check((await tlsAdmin.req('/api/admin/database/reauth',{password,action:'export'},{Origin:'https://evil.invalid'})).status===403,'Valid TLS login/CSRF cannot override Origin policy');
+ check((await request(true,'localhost:'+runtime.httpsPort,'/health')).status===403,'TLS Host must match configured remote Origin');
+ check((await tlsAdmin.req('/api/me',null,{'X-Forwarded-Proto':'http','X-Forwarded-For':'198.51.100.2'})).status===200,'Forwarded headers cannot change a native TLS entry domain');
+ check((await request(true,'ems-test.invalid','/api/security/events',null,tlsAdmin.cookie(),{},true)).status===200,'SSE works on its legitimate authenticated entry');
+
+ // Generation and compatibility checks keep old cookies/grants only in this process's memory.
+ const previousCookie=tlsAdmin.cookie(),previousGrant=await tlsAdmin.grant(),previousBoot=runtime.bootId;
+ function shell(file,args,label,expectFailure=false){const fd=fs.openSync(path.join(path.dirname(out),'logs',label+'.log'),'w');let failed=false;try{execFileSync(ps,['-NoProfile','-File',path.join(fixture,'server-complete-rc2',file),...args],{windowsHide:true,timeout:180000,stdio:['ignore',fd,fd]})}catch{failed=true}finally{fs.closeSync(fd)}if(failed!==expectFailure)throw Error('Owned '+label+' result unexpected');}
+
+ const configFile=path.join(fixture,'server-complete-rc2/network-mode.json');
+ shell('stop-server.ps1',[],'mode-stop');
+ const stopped=JSON.parse(fs.readFileSync(path.join(data,'instance-upgrade.json')));check(!stopped.app&&!stopped.database&&!stopped.nativeDrive,'Own mode fully stops before configuration changes');
+ const config=JSON.parse(fs.readFileSync(configFile));config.mode='compat';config.compatAcknowledged=false;config.testOrigin='http://ems-test.invalid';config.generation=crypto.randomUUID();fs.writeFileSync(configFile,JSON.stringify(config));
+ shell('start-server.ps1',['-Port',''+state.httpPort,'-NoBrowser'],'compat-no-ack',true);
+ const refused=JSON.parse(fs.readFileSync(path.join(data,'instance-upgrade.json')));check(!refused.app&&!refused.database,'Missing compatibility acknowledgement refuses startup before database connection');
+ config.compatAcknowledged=true;config.generation=crypto.randomUUID();fs.writeFileSync(configFile,JSON.stringify(config));shell('start-server.ps1',['-Port',''+state.httpPort,'-NoBrowser'],'compat-start');runtime=JSON.parse(fs.readFileSync(path.join(data,'network-runtime.json')));
+ check(runtime.mode==='compat'&&runtime.bootId!==previousBoot&&runtime.generation===config.generation,'Mode restart establishes a new server-side boot/configuration realm');
+ check((await request(true,'ems-test.invalid','/api/me',null,previousCookie.replace('SERVER_SAFE_TLS=','SERVER_COMPAT_TLS='))).status===401,'Previous-generation HTTPS SID cannot authenticate after restart');
+ const compatibility=await new Client(false,'ems-test.invalid').login();
+ check(compatibility.cookie().startsWith('EMS121RC2_SERVER_COMPAT_HTTP='),'Explicit compatibility HTTP uses its own cookie namespace');
+ const proxiedHost='ems-frp-peer.invalid:23456';
+ check((await request(false,proxiedHost,'/api/me',null,compatibility.cookie())).status===200,'Compatibility session serves a brand-new proxy Host with no preconfigured Origin');
+ check((await compatibility.req('/api/admin/database/reauth',{password,action:'export'},{Origin:'http://evil.invalid'})).status===403,'Cross-origin POST stays refused even though the compatibility Host is arbitrary');
+ check((await compatibility.req('/api/admin/database/export',{grant:previousGrant,backupPassword:'SyntheticEntryBackup92!'})).status===403,'Pre-restart one-time database authorization cannot be revived');
+ const manager=await new Client(false,'ems-test.invalid').login('260002');check((await manager.req('/api/admin/database/reauth',{password,action:'export'})).status===403,'Compatibility mode retains executive-only database authorization');
+ check((await request(false,'ems-test.invalid','/api/admin/database/reauth',{password,action:'export'},compatibility.cookie())).status===403,'Compatibility mode still requires CSRF for high-risk operations');
+ await exportBackup(compatibility,await compatibility.grant());
+ const a=new Client(true),b=new Client(true);await Promise.all([a.req('/login'),b.req('/login')]);const logins=await Promise.all([a.req('/login',{employeeNo:'260099',password}),b.req('/login',{employeeNo:'260099',password})]);check(logins.every(r=>r.status===302),'Two concurrent actual logins complete through transactional authentication');
+ const current=await Promise.all([a.req('/api/me'),b.req('/api/me')]);check(current.map(r=>r.status).sort().join(',')==='200,401','Concurrent logins leave exactly one effective account session');
+ shell('stop-server.ps1',[],'compat-stop');config.mode='safe';config.generation=crypto.randomUUID();config.keyStore='data/complete-rc2/server/tls/missing.p12';fs.writeFileSync(configFile,JSON.stringify(config));shell('start-server.ps1',['-Port',''+state.httpPort,'-NoBrowser'],'failed-remote-local-start');runtime=JSON.parse(fs.readFileSync(path.join(data,'network-runtime.json')));
+ check(runtime.remoteState==='FAILED'&&runtime.mode==='safe','Missing remote TLS material reports failure without an HTTP downgrade');
+ check((await request(false,'localhost:'+state.httpPort,'/health')).status===200,'Local management remains available after actual remote connector failure');
+ check((await request(false,'ems-frp-peer.invalid:23456','/health')).status===403,'Safe mode refuses a foreign Host once compatibility is switched off');
+ const after=new Client(false);await after.admit();await after.login();check((await after.req('/profile')).status===200,'Repeated restarts/mode changes preserve accounts and profile data');
+ fs.writeFileSync(out,JSON.stringify({passed:true,checks:checks.length,results:checks,scope:'isolated actual RC2 native connectors, synthetic JDBC accounts, entry/session/CSRF/grant/SSE and worker; no public FRP or real devices'},null,2));
+})().catch(e=>{console.error(e.message);process.exitCode=1}).finally(()=>agent.destroy());

@@ -1,6 +1,6 @@
-﻿param([Parameter(Mandatory=$true)][string]$Fixture,[ValidateSet('application','database')][string]$Kind)
+﻿param([Parameter(Mandatory=$true)][string]$Fixture,[ValidateSet('application','database')][string]$Kind,[ValidateSet('server','portable','dev')][string]$Mode='server',[ValidateSet('server','server-complete')][string]$RuntimeDirectory='server')
 $ErrorActionPreference='Stop'
-. "$Fixture\server\runtime-common.ps1" -Mode server
+. "$Fixture\$RuntimeDirectory\runtime-common.ps1" -Mode $Mode
 if(-not(Test-Path -LiteralPath "$Fixture\test-fixture.json")){throw 'Not a test fixture'}
 $lock=$null
 try{

@@ -1,0 +1,9 @@
+{
+  "zipEntryCounts": {
+    "EMS员工管理系统_v1.2.1-next_便携版_Windows_x64.zip": 542,
+    "EMS员工管理系统_v1.2.1-next_服务器版_Windows_x64.zip": 542,
+    "EMS员工管理系统_v1.2.1-next_源码.zip": 201
+  },
+  "privateKeyOrLiteralYamlPasswordFindings": [],
+  "scope": "public configuration text; fixture secrets never packaged"
+}

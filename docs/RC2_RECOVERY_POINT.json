@@ -1,0 +1,15 @@
+{
+  "commit": "514d5a0",
+  "archiveReadable": true,
+  "rawMigrationSource": "preserved rc1 source ZIP (Git LF differs from working CRLF)",
+  "migrations": [
+    {
+      "path": "backend/src/main/resources/db/upgrade/V1__canonical_business_schema.sql",
+      "sha256": "a31a1695d44bef6e4242d008b1e9e99ddd7da150301f322bd6d54cd1560b3771"
+    },
+    {
+      "path": "backend/src/main/resources/db/upgrade/V2__active_sessions.sql",
+      "sha256": "0ed1c7f23e7148af121bec76a7c3913f58fb4d7acd6f88306f2839da50fe6b1a"
+    }
+  ]
+}

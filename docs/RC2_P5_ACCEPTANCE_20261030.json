@@ -1,0 +1,53 @@
+{
+  "task": "RC2-P5",
+  "title": "Bound restore summary and confirmation",
+  "passed": true,
+  "exitCode": 0,
+  "mode": "local isolated complete-candidate runtime; synthetic fixture data",
+  "branch": "feature/v121-test-network-mode",
+  "commit": "4737fd91d297f5031667c6694b4158f0df182112",
+  "networkPolicy": "offline; loopback only; no production or external services",
+  "evidenceGroup": "complete-rc2",
+  "ownerTaskId": "22fdc41e-7291-493d-bc9c-c2310aaba015",
+  "recordedAt": "2026-10-30T09:47:51Z",
+  "humanRecord": "docs/RC2_P5_ACCEPTANCE_20261030.md",
+  "runs": [
+    {
+      "kind": "complete-database",
+      "path": ".release-evidence/1.2.1/20261030-174124-cd17230d5b9e",
+      "checks": 52,
+      "scope": "owned complete-candidate HTTP, database previews and actual cutover; no production data"
+    },
+    {
+      "kind": "complete-database",
+      "path": ".release-evidence/1.2.1/20261030-174551-45a7f27850f4",
+      "checks": 16,
+      "scope": "actual Chrome UI; cancel and acknowledgement; no active switch"
+    },
+    {
+      "kind": "complete-database-faults",
+      "path": ".release-evidence/1.2.1/20261030-164651-651b7b3a7af9",
+      "checks": 60,
+      "scope": "actual failure injection, rollback and broker interruption on owned namespace"
+    }
+  ],
+  "notCovered": [
+    "clean Windows offline machine",
+    "real production data cutover",
+    "real second device and public/FRP TLS certificates"
+  ],
+  "inputs": [
+    {
+      "path": ".release-evidence/1.2.1/20261030-174124-cd17230d5b9e/evidence.json",
+      "sha256": "214384e73f61d4050f40a9a2efe03aa72594d79ac31bc5200ef2bb9b4eeefd7c"
+    },
+    {
+      "path": ".release-evidence/1.2.1/20261030-174551-45a7f27850f4/evidence.json",
+      "sha256": "56befe8cd35af77ad0f418545fa1280fef94eef78aaade33fc78799f2da41a37"
+    },
+    {
+      "path": ".release-evidence/1.2.1/20261030-164651-651b7b3a7af9/evidence.json",
+      "sha256": "9847faeafacbc67f4825c64104a0099d4ea2ab0b5c849d12e95d632aac5f241a"
+    }
+  ]
+}

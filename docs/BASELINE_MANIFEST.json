@@ -1,0 +1,951 @@
+{
+  "source": "D:\\Desktop\\工程项目管理\\EMS员工管理系统（本地）\\employee-management-system_v1.2.0",
+  "description": "User-selected local baseline, not final three-person merge",
+  "files": [
+    {
+      "path": ".gitignore",
+      "size": 240,
+      "sha256": "57e965bac7edd4a6abe6bccbacd34c89f1f76f7204e93d34005c4c68f2779786"
+    },
+    {
+      "path": "app/migrations/profile-v1.1.1.sql",
+      "size": 2610,
+      "sha256": "e47a50c8f3804cfb272abd06f4b73c01f0553b422fa9e9b0136eb6d91f7e032f"
+    },
+    {
+      "path": "app/version.json",
+      "size": 68,
+      "sha256": "208d461ec77ad9aeb7c4c326842004dd49f79a19eb057c2df337abc882625145"
+    },
+    {
+      "path": "backend/pom.xml",
+      "size": 5083,
+      "sha256": "690f4c9784b423b8177f7991c095dd2787bbaa210e62e589681e38cbd181946a"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/config/BrowserLauncher.java",
+      "size": 1693,
+      "sha256": "4185e32f739688c1ad08b1bd47d047ab8af67aece9aa3be604a8d7ea24b83e67"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/config/DataInitializer.java",
+      "size": 297,
+      "sha256": "263cad6754781e0095b2bfb772bd0928799a1b8e4412210ce204610d4be253aa"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/config/LocalLifecycle.java",
+      "size": 1799,
+      "sha256": "a57d42a6c187f2823bc83f4fc9611659e4f91e61240f70ad86e2bd3fbbcfc9e7"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/config/ModeGuard.java",
+      "size": 442,
+      "sha256": "3996d5e12cc1ec2041797758d9a1081df23e190a5515934b08570d9f73a51cbf"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/config/SessionLifecycle.java",
+      "size": 946,
+      "sha256": "bc93ae4fabaaf07ce55fc543a4b1cf8420bf735a5fbc9c1d1836b432826d3147"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/config/UpgradeIsolation.java",
+      "size": 925,
+      "sha256": "e6565983fc17633972b0ab0d24895c70ddad04d12b3010a4b474a6a8cd3d63c1"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/config/WebConfig.java",
+      "size": 1192,
+      "sha256": "94f0123d2595dc972db56c11652c322a1671ae87adb0320c287b9e55264b4962"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/EmsApplication.java",
+      "size": 323,
+      "sha256": "fc16e33b26e4100c04d012fcf3590a6f5042a6d2ce5d375f7e585125dc0b2443"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/model/ProfileForms.java",
+      "size": 6196,
+      "sha256": "f417e2839aae8310caa5c97a6785f57963f5d31ddeb815edba964c94245c82aa"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/model/SessionUser.java",
+      "size": 503,
+      "sha256": "d7910ba6d560454f4391b241e9804e123b551b2710e7b35ddb612906ab40173d"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/service/AttendanceService.java",
+      "size": 8162,
+      "sha256": "111c19eea7d96688689f430c57db45e1934510e91b1cec563fe8b317ae59922c"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/service/AuthService.java",
+      "size": 5961,
+      "sha256": "ee304fce3563c7b6b919e85a2ddae2bffce883e7479ca03b04cc1ab3f2f626dd"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/service/DepartmentService.java",
+      "size": 12883,
+      "sha256": "44e6323583181d2378b601e2ce893f853cb03932c6fdfc09a5c558618de7a96f"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/service/EmployeeService.java",
+      "size": 12069,
+      "sha256": "55659d06f73f06d9274344b3910aa1900a55b176ba0fea7a460e4c7b4492c202"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/service/ExcelService.java",
+      "size": 7379,
+      "sha256": "a1b0eb850362335d60fa962e241c56d42f299fd1d9af6c45282dbf668ff40099"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/service/LeaveService.java",
+      "size": 10986,
+      "sha256": "0224eea009c20e88e550998f6dfddc252f2c816be7fef585ee076a21113b6d07"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/service/LogService.java",
+      "size": 589,
+      "sha256": "f30d19e018e7047175ea747bd766403d13f8570f71b69c1d73aa901cf938937c"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/service/ProfileConflictException.java",
+      "size": 184,
+      "sha256": "b697d9e3c2d27f83618a7f7d3c88f3191f2c034416c740dca12d2875480ef8b6"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/service/ProfileService.java",
+      "size": 10547,
+      "sha256": "e606d46a88f9decdfe1d345a75ad32d5caf68ff766d0b18f2efe2bb5585ce8e8"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/service/SalaryService.java",
+      "size": 4662,
+      "sha256": "bbd95210642a45c95d094cf8e19b05b181ad018052a34538c44c50bfba75e7bf"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/service/SessionService.java",
+      "size": 6828,
+      "sha256": "8b3db19ebf1e502f6b66762ed500938f54b9eac64c32502e507c82b55849f387"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/tools/LocalSetup.java",
+      "size": 4071,
+      "sha256": "addd7bf79dae5b9a9e622db41f8d283ce6fe881f217b0cf4b69f6c8694ac42cb"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/upgrade/BackupBundle.java",
+      "size": 2973,
+      "sha256": "2f4e1970c7db0bd21032fa14ab5d94c38d0b33d0efa245d7fece258c6e33a12f"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/upgrade/BackupCrypto.java",
+      "size": 3153,
+      "sha256": "89319dd3fed6e6fd6e3f36ba6443351c24738d5d3a14b25de37d621b742ffba2"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/upgrade/DatabaseAccess.java",
+      "size": 3736,
+      "sha256": "ceeafe779bad2a502d28a6018b08f5efc50f0fae35b9383adbcfb8a25d18deb3"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/upgrade/DatabaseController.java",
+      "size": 3278,
+      "sha256": "6bcd6a83e668cc68ed61ebd04fdd9c28b42e06a439280891a20360808b0e0e45"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/upgrade/DatabaseJobs.java",
+      "size": 8462,
+      "sha256": "4d069edabb27e8f4a78ff2c6032bba64aad6d8a2e4b7a87c1d7876c7a1e35bac"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/upgrade/LegacyExportMain.java",
+      "size": 1471,
+      "sha256": "e08d334036e2bd9e8c8651950e40282c88a57d08ce2b191bbcd726fe163a45f8"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/upgrade/MaintenanceGate.java",
+      "size": 1779,
+      "sha256": "3854d646da53320cebf11842a55f42f5a0aaf59b00a3efa091b5e2de37258152"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/upgrade/MaintenanceMain.java",
+      "size": 6254,
+      "sha256": "1a0bd606d1d21cd9fe83b3660371719771fec8e5d0c64d454e59d6483aaff1e2"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/upgrade/Schema.java",
+      "size": 4456,
+      "sha256": "db5235fa7057efc7ede700f7c19d0de5912221f6eb67ba1dafcc2850732bb02e"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/upgrade/SchemaMain.java",
+      "size": 537,
+      "sha256": "5077d2de57725082d3a614446b2e01eecc68638f0e5313eb2a049a9a9ad6c2d4"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/upgrade/SchemaRegistry.java",
+      "size": 4478,
+      "sha256": "d0b7ad2f3f7cef11279c20dbe07c8576688d024a1e43c940cdae979f89ec3219"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/upgrade/SchemaVersionGuard.java",
+      "size": 1192,
+      "sha256": "f1c8f251de4a05dd886ef6a2b6186f78fd61797a50015760fa75b2b3aadc8b47"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/upgrade/Snapshot.java",
+      "size": 11255,
+      "sha256": "3d9615a24a4834f85cee3ed5d905981f3aea25af8d0fda3e5bc936d1b2b93721"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/upgrade/WebMaintenanceMain.java",
+      "size": 1445,
+      "sha256": "26f7c2d4247bf6db0c8c8e3937f35a7889cecf8112bd3778e1666b9acc48657c"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/web/AdminController.java",
+      "size": 8756,
+      "sha256": "c9935b549391b932cebd28a7072f5fb6b25c2f0690df2270bc54493a9df07661"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/web/ApiController.java",
+      "size": 2166,
+      "sha256": "ba0e9a5a46ff901857c27ab30f2b3e5c92bffdc7f2776d152259f5d8343c986b"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/web/AttendanceController.java",
+      "size": 3825,
+      "sha256": "e97f76f3fb040afb00bf62d1808d0602d0e647aef5171ef002a8efa0f1b87cbb"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/web/AuthController.java",
+      "size": 3782,
+      "sha256": "6c3683322dd7610a906a45d75666a97d8ce77b16d4a6f75a71e709e7e7ca8873"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/web/AuthInterceptor.java",
+      "size": 4665,
+      "sha256": "bec810a910b15a7abac13b36008c809d415f2b13334627014fe6d44949c4fbf0"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/web/EmployeeController.java",
+      "size": 5784,
+      "sha256": "627b5b0a9874d8c60ee913f123ef169201749bf7d8667c82e7e4a8ac746e40e3"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/web/EmployeeReturn.java",
+      "size": 1533,
+      "sha256": "1901083fe34ff3f1175c371b617c95f0df13a64d0f428a952244f5a93680ffad"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/web/GlobalExceptionHandler.java",
+      "size": 1457,
+      "sha256": "8b0829a6a709874af7a94f67f03e9dc9745213f9060df3afd568cec6b855cff8"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/web/HealthController.java",
+      "size": 678,
+      "sha256": "89db03839432f1b6af27f1c0f6475f11f594e69502deeeae6c869be464fe322f"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/web/HomeController.java",
+      "size": 1841,
+      "sha256": "12c771cd2c7e5f0d18460bbaa343c7ead1a9c6ff4a8b20504eba834fdc486a00"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/web/LeaveController.java",
+      "size": 2752,
+      "sha256": "3b4e2fa858fa0677b9ebb39c0eee2bcd18fb98285c2abcda816af2da1265aed5"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/web/OptionViews.java",
+      "size": 1159,
+      "sha256": "d2ffbbb2891e1dacce102ce8fedca65da4ec7c3c4e7970147887513338605dbd"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/web/PortableControlController.java",
+      "size": 2918,
+      "sha256": "69a1d25f8d0f639d12409a6396d429c2054d16e217a9958bba4e306b7a9f23dc"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/web/ProfileController.java",
+      "size": 6709,
+      "sha256": "5f2fa6550c7e8166a8c9024f60d278b291825b6adb3f4cdc968cc977aaaf4299"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/web/ProfileCsrfInterceptor.java",
+      "size": 2125,
+      "sha256": "faf28faa448e8a05361fa26c701a71620faaddd391f876ecde068dfab8c27065"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/web/RequestPaths.java",
+      "size": 458,
+      "sha256": "20b8602fe8eab05b027d902c82a75ef708494d846a2bc54a7f0169d6a08b2d69"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/web/SafeErrorController.java",
+      "size": 1812,
+      "sha256": "44272a99038152d73bd23e7027bc7c273ab539fa1179e497f473006c4cba9ab8"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/web/SalaryController.java",
+      "size": 743,
+      "sha256": "730bd8a9d5f7d5fca4e2e66a8ddb314997ac3813c7c6b6f14b7eac77393fa010"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/web/UserErrors.java",
+      "size": 4210,
+      "sha256": "a3a1638064346883e9654a9578dc368f0d14fe5002b1624ba761d7e0ddd16e0c"
+    },
+    {
+      "path": "backend/src/main/java/com/example/ems/web/ViewFormats.java",
+      "size": 2605,
+      "sha256": "68a4d600502abff892e2a4cbe8946ce8d2a1d1f93a0be90696b6e7862b184c74"
+    },
+    {
+      "path": "backend/src/main/resources/application-portable.yml",
+      "size": 561,
+      "sha256": "105a959b4ee7464368c882671feb6a4c0db4eb1551effcbbaa1008480a56f75a"
+    },
+    {
+      "path": "backend/src/main/resources/application-server.yml",
+      "size": 581,
+      "sha256": "9d41e537abbcf5f63311ca60b15a6e4ba0f49f6b04c9b1cea388072a2d2ff36f"
+    },
+    {
+      "path": "backend/src/main/resources/application.yml",
+      "size": 1097,
+      "sha256": "e676b26f670ce8a2bea10efe89fc19e0be6177f77f2e44e5c8ccf950d22ba562"
+    },
+    {
+      "path": "backend/src/main/resources/db/legacy/113.sql",
+      "size": 12532,
+      "sha256": "c84563f9634b875225eb27edce402f74aa2e09bbec6dfdcf3f68070c135ceae3"
+    },
+    {
+      "path": "backend/src/main/resources/db/legacy/120.sql",
+      "size": 11343,
+      "sha256": "5c58dec4fd6400c2942f75d01ff040ebb30d3b675aef771a554b5a413efe18f6"
+    },
+    {
+      "path": "backend/src/main/resources/db/migration/profile-v1.1.1.sql",
+      "size": 2570,
+      "sha256": "c947efa747633a4e6b43d6a6834cc16852c865d822c04c7cac96848e438f874a"
+    },
+    {
+      "path": "backend/src/main/resources/db/upgrade/V1__canonical_business_schema.sql",
+      "size": 15905,
+      "sha256": "a31a1695d44bef6e4242d008b1e9e99ddd7da150301f322bd6d54cd1560b3771"
+    },
+    {
+      "path": "backend/src/main/resources/db/upgrade/V2__active_sessions.sql",
+      "size": 391,
+      "sha256": "0ed1c7f23e7148af121bec76a7c3913f58fb4d7acd6f88306f2839da50fe6b1a"
+    },
+    {
+      "path": "backend/src/main/resources/META-INF/spring.factories",
+      "size": 95,
+      "sha256": "7c1a457ac4644dcb3cf375894cdc9a035854c0a83e5af6b7e5631336147e6b2c"
+    },
+    {
+      "path": "backend/src/main/resources/schema.sql",
+      "size": 8569,
+      "sha256": "12dde9103e818ba8dc315b06d01965717e960a501b45186cc91cf662615f7782"
+    },
+    {
+      "path": "backend/src/portable/resources/application.yml",
+      "size": 1097,
+      "sha256": "e676b26f670ce8a2bea10efe89fc19e0be6177f77f2e44e5c8ccf950d22ba562"
+    },
+    {
+      "path": "backend/src/test/java/com/example/ems/model/ProfileFormsTest.java",
+      "size": 2347,
+      "sha256": "4b8a6578bebb612b3d8c4468b729f986a8d1a2d6406ffd23b8868870a78f2d7d"
+    },
+    {
+      "path": "backend/src/test/java/com/example/ems/service/AuthValidationTest.java",
+      "size": 2457,
+      "sha256": "274492b667f5e0aa2506cf218c8c20c3ecfcd7cf124f596e560fd58769e86521"
+    },
+    {
+      "path": "backend/src/test/java/com/example/ems/service/ExcelInputSafetyTest.java",
+      "size": 2449,
+      "sha256": "f29c9ac74a49deb9a3311b10b0941726cdfd13fe94ef2f195edf598ce1fbdd98"
+    },
+    {
+      "path": "backend/src/test/java/com/example/ems/session/SessionDatabaseIT.java",
+      "size": 8346,
+      "sha256": "8f9a117f6af27061bb791aef36c239194002dc6a0e5a508435a6874d3d22e18c"
+    },
+    {
+      "path": "backend/src/test/java/com/example/ems/session/WebSessionIT.java",
+      "size": 4623,
+      "sha256": "60ac98306ecd066dcffd4306283c0ac972b7d30ba6116c8b13052be0840da319"
+    },
+    {
+      "path": "backend/src/test/java/com/example/ems/upgrade/BackupBundleTest.java",
+      "size": 1637,
+      "sha256": "079b1d3e3371c6e93165ee99e57bd851afc0f75cc99f24aac80fc72bca46f492"
+    },
+    {
+      "path": "backend/src/test/java/com/example/ems/upgrade/BackupCryptoTest.java",
+      "size": 2746,
+      "sha256": "e8908cfb3edbd5c2ae0ecc8e8aec007358898cfdc095dffad0b5ec79c6ada9d7"
+    },
+    {
+      "path": "backend/src/test/java/com/example/ems/upgrade/DatabaseAccessTest.java",
+      "size": 3814,
+      "sha256": "6ea1f52e883af9733f941ecd5a35716f1c61f775e7ac3c06b7bbe562340f38f3"
+    },
+    {
+      "path": "backend/src/test/java/com/example/ems/upgrade/GenerateRecruitmentWorkbook.java",
+      "size": 942,
+      "sha256": "1e3c196d910ed089ee9f71a9c719e92fb524a1d4be8edf47131f279ff72a7aea"
+    },
+    {
+      "path": "backend/src/test/java/com/example/ems/upgrade/LegacyFixtureMain.java",
+      "size": 1239,
+      "sha256": "92ad7ef2f0c4684d6b0ee8b9bbcf3bc6c098435f9020ccbaffa90c03bf672330"
+    },
+    {
+      "path": "backend/src/test/java/com/example/ems/upgrade/UpgradeDatabaseIT.java",
+      "size": 9854,
+      "sha256": "1601d9b4482fad088286c46d9f70a35f6d68ff29ca45030d27362ae0eb99d430"
+    },
+    {
+      "path": "backend/src/test/java/com/example/ems/web/PortableControlControllerTest.java",
+      "size": 2295,
+      "sha256": "8620c6a280e831486d77544deac138d60a323b0f36e0d589dde51a99875b1a25"
+    },
+    {
+      "path": "backend/src/test/java/com/example/ems/web/ProfileControllerTest.java",
+      "size": 3859,
+      "sha256": "0b103ef899f5ccf0890c34005c2060688a60b8acb9d736875677fdf25d2cab85"
+    },
+    {
+      "path": "backend/src/test/java/com/example/ems/web/ServerSecurityTest.java",
+      "size": 2118,
+      "sha256": "33f29a5ea623496b448a03290ff763f1934a2cc5eecd8e3bc4e7addd3e4c5808"
+    },
+    {
+      "path": "backend/src/test/java/com/example/ems/web/V112BehaviorTest.java",
+      "size": 9361,
+      "sha256": "ced748d77f4ede25e84cd139583398793cb5511bee32031cf0510e0d8a37e1d1"
+    },
+    {
+      "path": "backend/src/test/resources/legacy/113.sql",
+      "size": 12532,
+      "sha256": "c84563f9634b875225eb27edce402f74aa2e09bbec6dfdcf3f68070c135ceae3"
+    },
+    {
+      "path": "backend/src/test/resources/legacy/120.sql",
+      "size": 11343,
+      "sha256": "5c58dec4fd6400c2942f75d01ff040ebb30d3b675aef771a554b5a413efe18f6"
+    },
+    {
+      "path": "bootstrap/runtime-sha256.json",
+      "size": 75743,
+      "sha256": "9254ec36f5015e5ce238a18c90b23dee6315cdf491d35aec501629a774c28824"
+    },
+    {
+      "path": "bootstrap/schema.sql",
+      "size": 12209,
+      "sha256": "39b7c280058adbc719f17338b25825d3b3c064ebf35bcb44e8ebf0c6a631b775"
+    },
+    {
+      "path": "DEMO_DATABASE_GUIDE.md",
+      "size": 2486,
+      "sha256": "6f72bad7b599f8ce53d4b23f0df1cfa195670fcaa573993341b3fc6d59a0fa31"
+    },
+    {
+      "path": "docs/API与权限.md",
+      "size": 2081,
+      "sha256": "cdd6604fa5b0f27cf1d670d93a99c5b64d4f379e7a2c39f83c278bbc79b9ad18"
+    },
+    {
+      "path": "docs/IDEA调试说明.md",
+      "size": 1650,
+      "sha256": "ab2c5d8a33857ab4fc0ef4a7720f85cc9abe92439433263edd0835e6f80505ff"
+    },
+    {
+      "path": "docs/备份与恢复.md",
+      "size": 2904,
+      "sha256": "80b302e9d84986f9aad3a088ab1dce49b7fca857f8a428750a3d100da47df8df"
+    },
+    {
+      "path": "docs/安装与升级.md",
+      "size": 3022,
+      "sha256": "949ae21c89384e054da86baaeff6b068a45efecbe640fc1862b46db18a877a10"
+    },
+    {
+      "path": "docs/已知边界.md",
+      "size": 1563,
+      "sha256": "ab80c08bd20911ed991183d4abb4d6f4f47736ee02e8881104749a04e04e23e5"
+    },
+    {
+      "path": "frontend/README.md",
+      "size": 370,
+      "sha256": "a3dcf5bd52184bc69762ccb0b7d5eb2df540f1e5b1de14171a5abf7764ec1112"
+    },
+    {
+      "path": "frontend/static/css/app.css",
+      "size": 9246,
+      "sha256": "2b0b03c4eb5e161140c73932bd276ee28b518a364a7ddadc3d8b9c0f3b25192d"
+    },
+    {
+      "path": "frontend/static/js/database.js",
+      "size": 4563,
+      "sha256": "92b9f734ec6f9c9e1c327af7ec1b4aba19d430ddaee5d46cc69be5f4906d5db0"
+    },
+    {
+      "path": "frontend/static/js/profile-forms.js",
+      "size": 2445,
+      "sha256": "26a4e80d3e9cf1fc62a3a7359f78cf9661b64f62540ea08bc55d2cf39d14abf4"
+    },
+    {
+      "path": "frontend/templates/attendance-manage.html",
+      "size": 4171,
+      "sha256": "6947df2513351e5c84308181ef2d7a7daf9c7d5e51822a8ae56ad6053c782be1"
+    },
+    {
+      "path": "frontend/templates/attendance-my.html",
+      "size": 3158,
+      "sha256": "3b26802c5b31cedb4e180cbba41e342c636830550dea23bfdf45affb05a5e445"
+    },
+    {
+      "path": "frontend/templates/dashboard.html",
+      "size": 1734,
+      "sha256": "80d1f910ad5105aa799eff708c1ae5dd0e42429d600939a642438ed82d36901a"
+    },
+    {
+      "path": "frontend/templates/database.html",
+      "size": 1920,
+      "sha256": "6475df78e1259f5c0f257dd202922303ff17970d31e96a1662a0742af93a7c16"
+    },
+    {
+      "path": "frontend/templates/department-new.html",
+      "size": 1039,
+      "sha256": "a9bcb5112ee4ba6b0a238fd58e5f56473b6546c38543de0650fa89ff59b1aee5"
+    },
+    {
+      "path": "frontend/templates/departments.html",
+      "size": 3261,
+      "sha256": "7f05dd8794de250771abc8b9d7451346c09e87dd4b8a773f2dbbb8bf39c281ad"
+    },
+    {
+      "path": "frontend/templates/employee-detail.html",
+      "size": 1871,
+      "sha256": "2c0de001a6b8296a51107287e867ff4ec3110f2b8d19e684cd1c4bbf7a292b5b"
+    },
+    {
+      "path": "frontend/templates/employee-return.html",
+      "size": 494,
+      "sha256": "c16f5e72e35f2a0fc29e15690bc58bffc7c07dbbffd8453a20f812208d64f7cc"
+    },
+    {
+      "path": "frontend/templates/employees.html",
+      "size": 6015,
+      "sha256": "3a588f6f2e8099a148f99c29f41aa0b7912dc7673127ffa5c16a3825bade74a1"
+    },
+    {
+      "path": "frontend/templates/error-page.html",
+      "size": 639,
+      "sha256": "c384aa8cd6b7210506f32bdfd048e83962290de26d44d08b1442540c9de50409"
+    },
+    {
+      "path": "frontend/templates/error.html",
+      "size": 739,
+      "sha256": "b1a78dff7d51cb0b415f66fa8e1b7f761f4c13c0f938e6ff3b9451a94c2fb389"
+    },
+    {
+      "path": "frontend/templates/fragments.html",
+      "size": 4633,
+      "sha256": "126cbedb809b6d712642a492624ff8ce6df5548186ad8b140a01da9de75d0f83"
+    },
+    {
+      "path": "frontend/templates/leave-approvals.html",
+      "size": 2307,
+      "sha256": "814bf0549283779557ef2fef61a30d934e7bcdf9cc44ac7faba8edf22adb6e7b"
+    },
+    {
+      "path": "frontend/templates/leaves-my.html",
+      "size": 2366,
+      "sha256": "b5bc49366f98e3a6313dc366f4f0f45e1abd2cf6b707e44c16ad2f71ba68c969"
+    },
+    {
+      "path": "frontend/templates/login.html",
+      "size": 1266,
+      "sha256": "d28ec3ad2619a2283cf400d42f977d85b6cc21b8f41595f8fda61f461f3a5af7"
+    },
+    {
+      "path": "frontend/templates/logs.html",
+      "size": 975,
+      "sha256": "a3903dcfe8362ec0ff56b6f80be365d1fafdeda513c881920924e8d35acee283"
+    },
+    {
+      "path": "frontend/templates/my-salaries.html",
+      "size": 1578,
+      "sha256": "53df216a1281e0405b4fa1896d92814b53405d38b421d40cbb927c92ff129628"
+    },
+    {
+      "path": "frontend/templates/password.html",
+      "size": 895,
+      "sha256": "d83b05c37156b46c8561bd062e99a895ca1a9da32c0557bfcb894c40ea0aadb1"
+    },
+    {
+      "path": "frontend/templates/position-new.html",
+      "size": 1127,
+      "sha256": "7dd98263ea25bd980309584c3492c15b05eafb72ce44f672d708eb4d90610019"
+    },
+    {
+      "path": "frontend/templates/positions.html",
+      "size": 3129,
+      "sha256": "3e577a8a1bf04a2bef0fddb5b8aa276508f330179fe7331afc26dd1a76585b48"
+    },
+    {
+      "path": "frontend/templates/profile-edit.html",
+      "size": 2100,
+      "sha256": "dd7bcb316afb1c1eea3124d4bf46518ea6adde84fb96a0724c4cb44cc7786661"
+    },
+    {
+      "path": "frontend/templates/profile-entry.html",
+      "size": 3453,
+      "sha256": "e80966ea9d12c9e8468a77af6e5de31498e22c2a5a60d921c1ff84d42a97a2f3"
+    },
+    {
+      "path": "frontend/templates/profile-sections.html",
+      "size": 7330,
+      "sha256": "338668f76780814f01c537f9d93f98c30c4d91520299869a7bee17844ae294af"
+    },
+    {
+      "path": "frontend/templates/profile.html",
+      "size": 2178,
+      "sha256": "e51dae412dede607e3184cc0716ca102ecb08b408fcd81c67a76d052bd0e940e"
+    },
+    {
+      "path": "frontend/templates/recruitment.html",
+      "size": 2586,
+      "sha256": "1c6a5e541ee0ffc1aec69270f0ce63f6c7b7313619466c704309cdb00bea0270"
+    },
+    {
+      "path": "frontend/templates/register.html",
+      "size": 1096,
+      "sha256": "bfa0a242089740867906f8eeefcdf307ce4a3c71b07652f73f8a54e7fb8bf3b7"
+    },
+    {
+      "path": "frontend/templates/salaries.html",
+      "size": 3471,
+      "sha256": "d3095a940825bcb2c85663d4a742d20e53d67ebb5400bc543a9027223f781bb4"
+    },
+    {
+      "path": "launcher/artifact-common.ps1",
+      "size": 17879,
+      "sha256": "31a653286a38429d4d29e2bf7802c7148bb68be5e580bc1fe3a0eb11efc58195"
+    },
+    {
+      "path": "launcher/build-release.ps1",
+      "size": 1970,
+      "sha256": "41ff994123c22bc392a23a9f20219060c858ebc92ca8ed257a78b51b001e17c3"
+    },
+    {
+      "path": "launcher/dependencies-lock.json",
+      "size": 551,
+      "sha256": "9f3dcc5482439465fafbe85f62aa29dbefe8ba48190e8da22f8ede6095a4e0e2"
+    },
+    {
+      "path": "launcher/generate-recruitment-fixture.ps1",
+      "size": 610,
+      "sha256": "cc183c07eab6aacd6b8f355c270d74fc9ef7a87e07b3f71ec95e4745e2e35913"
+    },
+    {
+      "path": "launcher/inject-server-test.ps1",
+      "size": 858,
+      "sha256": "138f6a210d36b0beb61c71538c69fec18d814fe95e5c47438fbabb981e590796"
+    },
+    {
+      "path": "launcher/inspect-expanded-business.ps1",
+      "size": 1310,
+      "sha256": "7b6240fca7f9f49968a68ddaa5689c21dfe174c38578b8ce4cbef9ffc66ce12c"
+    },
+    {
+      "path": "launcher/inspect-server-test.ps1",
+      "size": 1869,
+      "sha256": "454178f358ad95844bc1f0eda3f728b4359e307106d3612192171588e5914a69"
+    },
+    {
+      "path": "launcher/interrupt-database-test.ps1",
+      "size": 1458,
+      "sha256": "0f9428dc22bc3d8902bf5fd963667394212354d7fa55772aa192f512050a1a70"
+    },
+    {
+      "path": "launcher/package-rules.ps1",
+      "size": 1582,
+      "sha256": "b5d88bde298ba24bba4e4ce21ab8389309f665ae908b21bbd5402c1ff6b16697"
+    },
+    {
+      "path": "launcher/portable-common.ps1",
+      "size": 66,
+      "sha256": "0dc14fd67cfd286e1a595fa917406b2e034c4c0701e514c84e25bcb363cb1519"
+    },
+    {
+      "path": "launcher/prepare-legacy-installation.ps1",
+      "size": 2329,
+      "sha256": "ccb2adf0fbf9931ec2ff2c2670dedb075568bffdfc590e1e050bc5ac25688def"
+    },
+    {
+      "path": "launcher/prepare-runtime.ps1",
+      "size": 1864,
+      "sha256": "cfe3fad675132077a4da4f4053e1656948856d6193a22b06e32ee8895eb88705"
+    },
+    {
+      "path": "launcher/report-space.ps1",
+      "size": 5960,
+      "sha256": "6e67e1be5fe1485b5ecac2b46d117d14483d9bfbb1645741473a7a57c02d513f"
+    },
+    {
+      "path": "launcher/seed-server-test.ps1",
+      "size": 3281,
+      "sha256": "ba6f29f5ca2fbe1f474e465657d0016fa7ae30ff5266de7e71c943a97bb78961"
+    },
+    {
+      "path": "launcher/stage-app.ps1",
+      "size": 507,
+      "sha256": "2cdb648c4155080be006ea9c273bbd277ec9d0c3b23e283ad1e7ffd06e828b3d"
+    },
+    {
+      "path": "launcher/start-ems.ps1",
+      "size": 239,
+      "sha256": "1b95adfd6ce4c834a7b20d6662de939ce1783502ed6ac0e1c58208ae8aebda2d"
+    },
+    {
+      "path": "launcher/stop-ems.ps1",
+      "size": 189,
+      "sha256": "972897f633990c2d7ceb7255c529dee138da6c75e122dd3170c47726a3a00073"
+    },
+    {
+      "path": "launcher/test-artifacts.ps1",
+      "size": 10329,
+      "sha256": "d825624ff3caf5c49ea99ed00f0d5fa2e151995d1efe3d1d4e325fee6c07c0de"
+    },
+    {
+      "path": "launcher/test-browser-v112.cjs",
+      "size": 12605,
+      "sha256": "fe0d772ea94f6c0532d4736ce353be01a25539e24af1d3b6695a55ca2cd42cd5"
+    },
+    {
+      "path": "launcher/test-business-complete.cjs",
+      "size": 7275,
+      "sha256": "701e6aa941823d8d7498394f67c1041336bfeb6f9b5fd46fe9aedd3aa0d15750"
+    },
+    {
+      "path": "launcher/test-database-http.cjs",
+      "size": 12267,
+      "sha256": "3385c6f07307ba55a8fb729cf371bc8c58a785068feb6c20f9c32929ce4fbb45"
+    },
+    {
+      "path": "launcher/test-database-management.ps1",
+      "size": 2661,
+      "sha256": "93f1225dbe15f2877912d6e32b9894c8a2f461e9b72b224138e98f199d15d049"
+    },
+    {
+      "path": "launcher/test-legacy-installation.ps1",
+      "size": 3818,
+      "sha256": "ecb31951e07d14db0839e0faac2eb07819e272d1e17cbc48c494a99515361e01"
+    },
+    {
+      "path": "launcher/test-server-http.cjs",
+      "size": 10850,
+      "sha256": "4ec23b7889e47fcac659cb5ac0c51506cf7a3b5b6c8fdc06b1485b5df9b65028"
+    },
+    {
+      "path": "launcher/test-server.ps1",
+      "size": 11198,
+      "sha256": "8c8cb66575724288abe099112eee0781374ada3c7219a57ff5ee509ea28225d6"
+    },
+    {
+      "path": "launcher/test-session-browser.cjs",
+      "size": 6804,
+      "sha256": "0fc0af8202a068cd9af521b4253b46ada236f1996c0931bddab4072958d944fe"
+    },
+    {
+      "path": "launcher/test-session-database.ps1",
+      "size": 1299,
+      "sha256": "039d7684616b764db70e2820bb2226927e60126f9e83e46d08927456f4f129c4"
+    },
+    {
+      "path": "launcher/test-session-http.cjs",
+      "size": 5255,
+      "sha256": "ab1a7f7fc8e1ec8ecc7e56ea26a20f82bd0082db0af17a1a833d422e04ca6fa1"
+    },
+    {
+      "path": "launcher/test-switch-recovery.ps1",
+      "size": 3300,
+      "sha256": "852d5b872259524b80833c786a47bcaafa7697ac5c3bcdf4a829c5d298e641d5"
+    },
+    {
+      "path": "launcher/test-upgrade-database.ps1",
+      "size": 1587,
+      "sha256": "0f34a7cb6c7a62258a9a690ef4ce6d684322140aa5e02f9be165ba2cba8da937"
+    },
+    {
+      "path": "launcher/test-upgrade-login.cjs",
+      "size": 1962,
+      "sha256": "e6d3af55042d4607154d92472bfc2590b330cb31c0358d8f0785646c46cee95f"
+    },
+    {
+      "path": "launcher/verify-excel.ps1",
+      "size": 2089,
+      "sha256": "af57bee656c30cce4acebd5c89e99693ccac0a84b943abc354e155cace3789f8"
+    },
+    {
+      "path": "launcher/verify-package.ps1",
+      "size": 4292,
+      "sha256": "210283f66128252021dfcd60897f1f9b2813fa08c669f2d539020bd617bf5ac6"
+    },
+    {
+      "path": "README.md",
+      "size": 4781,
+      "sha256": "a1e34d284446e3f15a754fe3629f23cce4ddecd1affe2e02b39a4b84dac9e2c2"
+    },
+    {
+      "path": "RELEASE_NOTES_v1.2.0.md",
+      "size": 1399,
+      "sha256": "1d0b8516f7d65dcd077722fd97074d1b359e933537619cbd736488f79995acc8"
+    },
+    {
+      "path": "RELEASE_VALIDATION_v1.2.0.md",
+      "size": 5803,
+      "sha256": "dfd535a75cd38bac2ece5a7733b968a092f3cd5f96705fdaa7dc76da0b4d811b"
+    },
+    {
+      "path": "server/backup-database.ps1",
+      "size": 1021,
+      "sha256": "c2bfbc8a1a4ba1201afe199fc556b50756ca3f992a8f57020ce7a4938ed79f0a"
+    },
+    {
+      "path": "server/check-network.ps1",
+      "size": 824,
+      "sha256": "1847ebaf8542c179fb12ef93cc9f9a37c8c4b1b3c311806bb5679cb2e2ecab15"
+    },
+    {
+      "path": "server/check-server.ps1",
+      "size": 460,
+      "sha256": "437e5e8ba18f4c88316ffe2298dced513936fc5c16530b6faffa855c82552df3"
+    },
+    {
+      "path": "server/database-job.ps1",
+      "size": 7828,
+      "sha256": "537f48a9ec43a0c1a9f6f346e45538dbbb691c60a51971f1584fada69a972f98"
+    },
+    {
+      "path": "server/initialize-server.ps1",
+      "size": 1727,
+      "sha256": "85cdb508823eec42afea9d0aced49a7c434943cd980b1e3683578fd68b3355cf"
+    },
+    {
+      "path": "server/monitor-server.ps1",
+      "size": 5256,
+      "sha256": "3ceb9cc7a5dc1cb256a1840b972dcac3dbf6867c61ebf4be432d1e37ee0ab0e7"
+    },
+    {
+      "path": "server/restore-private.ps1",
+      "size": 115,
+      "sha256": "8a5b5e7b41afa9d4a3f7e9db3d407b15a1ae18d25e7d78047f73fc11e4ee852a"
+    },
+    {
+      "path": "server/runtime-common.ps1",
+      "size": 26850,
+      "sha256": "84a10842d8e0342aaaeb7c8d58b933b669bacfd6d760d70a0c08e339e96b2343"
+    },
+    {
+      "path": "server/start-server.ps1",
+      "size": 6391,
+      "sha256": "a026269360522a261f41ae015e63e9576c2a96596b7dc52d801add416805a85b"
+    },
+    {
+      "path": "server/stop-server.ps1",
+      "size": 567,
+      "sha256": "1a6e4379a48a0c7c1bf63fbe120510fd71d2ceac984378e5227be89d7f782931"
+    },
+    {
+      "path": "server/upgrade-installation.ps1",
+      "size": 9097,
+      "sha256": "c9acbd0c41c6c130a9bd1ecbf3ecbec204b7cca084dba018445c9a774be2dc82"
+    },
+    {
+      "path": "server/verify-restore.ps1",
+      "size": 3718,
+      "sha256": "a2c79e88f814d84933981b6d9caf17376d622573fd4c9928413ac1eca1eb6133"
+    },
+    {
+      "path": "server/view-logs.ps1",
+      "size": 401,
+      "sha256": "86f620cca76ea19af4c1684beb5abd2ff393d041c95d2923e0b4c88608f1f509"
+    },
+    {
+      "path": "THIRD_PARTY.md",
+      "size": 1895,
+      "sha256": "7eba705046e1598136fc0f19aa4686605655519daa34f5a5c2ba9873c86b483d"
+    },
+    {
+      "path": "UPGRADE_v1.1.3_to_v1.2.0.md",
+      "size": 2505,
+      "sha256": "798dd1fd90d215dfebe2ee7ea608e5d3a15d883310fef036fddc9fcf1e2b6e3d"
+    },
+    {
+      "path": "停止员工管理系统.bat",
+      "size": 174,
+      "sha256": "2b81a39fb62ae57991130c114c6f84a6131bf7a0d363c8b6c965f38ded658593"
+    },
+    {
+      "path": "停止服务器.bat",
+      "size": 160,
+      "sha256": "20d7825a865dd432f1fabdb80c82819011a4aefb9e68a2eeded4172f40aa03fb"
+    },
+    {
+      "path": "准备开发数据库.bat",
+      "size": 175,
+      "sha256": "a3a56dbcf7248c03de89021619139a480062bace296b70b866a232c60a50a91d"
+    },
+    {
+      "path": "初始化便携版.bat",
+      "size": 180,
+      "sha256": "f45527c2bbbc1d562eb559791f5b5808d6625a3701640144b3f2cc154d5472ad"
+    },
+    {
+      "path": "初始化服务器.bat",
+      "size": 166,
+      "sha256": "513a6f14cbcdbaee8f6d13dac427d54f414703b047b1ba56cd3dc8d63bacba5f"
+    },
+    {
+      "path": "启动员工管理系统.bat",
+      "size": 175,
+      "sha256": "58e8b317684bd03367eabb99049860608eb2a037da826881cebeb8bc03480087"
+    },
+    {
+      "path": "启动服务器.bat",
+      "size": 161,
+      "sha256": "d61da0383c6b8b44b3ee3650182b0ec2c23be6741fc1baeb59400a6c2659d036"
+    },
+    {
+      "path": "查看服务器日志.bat",
+      "size": 158,
+      "sha256": "c9f98dd845343be42fcb77285e4561be79ca78d62ea6e104e79cd645c1b316c6"
+    },
+    {
+      "path": "检查服务器.bat",
+      "size": 161,
+      "sha256": "323638c127da9b02539db156103145a21b208f0def4991158626d70e440b5d71"
+    },
+    {
+      "path": "检查网络.bat",
+      "size": 162,
+      "sha256": "685fdea4f1a3d35ba77d6d16eb020957b064522aa28d8bf8e47b1736de12bec5"
+    },
+    {
+      "path": "监控服务器.bat",
+      "size": 169,
+      "sha256": "1583c6b8686042121a20578f31c465bb50064780eaf9d1a54a45d305b0aefbca"
+    }
+  ]
+}

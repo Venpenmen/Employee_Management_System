@@ -1,9 +1,9 @@
-﻿param([ValidateSet('server','portable','dev')][string]$Mode='server',[string]$Address=$env:EMS_SERVER_ADDRESS,[int]$Port=0,[switch]$NoBrowser)
+param([ValidateSet('server','portable','dev')][string]$Mode='server',[string]$Address=$env:EMS_SERVER_ADDRESS,[int]$Port=0,[switch]$NoBrowser)
 $ErrorActionPreference='Stop'
 . "$PSScriptRoot\runtime-common.ps1" -Mode $Mode
 $lock=$null;$state=$null;$startedDb=$false;$startedApp=$false;$oldEnv=@{}
 try{
- if($Port -eq 8083 -or $env:EMS_SERVER_PORT -eq '8083'){throw '8083 is reserved; v1.2.0 refuses to use it'}
+ if($Port -eq 8083 -or $env:EMS_SERVER_PORT -eq '8083'){throw '8083 is reserved; v1.2.1 refuses to use it'}
  $lock=Enter-EmsLock;Assert-Package;$state=Read-EmsState
  Recover-EmsPendingSwitch $state
  if($state -and (Get-OwnedProcess $state.app)){
@@ -21,8 +21,8 @@ try{
  $ip=$null
  if(-not [Net.IPAddress]::TryParse($Address,[ref]$ip) -or $ip.AddressFamily -ne [Net.Sockets.AddressFamily]::InterNetwork -or $Address -eq '0.0.0.0'){throw 'Specify one local IPv4 address; wildcard binding is disabled'}
  if($Address -ne '127.0.0.1' -and -not(Get-NetIPAddress -AddressFamily IPv4|Where-Object IPAddress -eq $Address)){throw 'Configured address is not present on this host'}
- if(-not $Port){if($Mode -eq 'server' -and $env:EMS_SERVER_PORT){$Port=[int]$env:EMS_SERVER_PORT}else{$Port=@{server=8283;portable=8281;dev=8282}[$Mode]}}
- if($Port -in @(8083,8183)){throw 'v1.2.0 development requires loopback and never port8083'}
+ if(-not $Port){if($Mode -eq 'server' -and $env:EMS_SERVER_PORT){$Port=[int]$env:EMS_SERVER_PORT}else{$Port=@{server=8383;portable=8381;dev=8382}[$Mode]}}
+ if($Port -in @(8083,8183)){throw 'v1.2.1 development requires loopback and never port8083'}
  if($Port -lt 1024 -or $Port -gt 65535){throw 'HTTP port must be between 1024 and 65535'}
  $listener=New-Object Net.Sockets.TcpListener($ip,$Port)
  try{$listener.Start()}catch{throw "HTTP address/port unavailable: $Address port $Port"}finally{$listener.Stop()}
@@ -36,7 +36,7 @@ try{
    $lock=Enter-EmsLock;$state=Read-EmsState
    $state.address=$Address;$state.httpPort=$Port
    $script:DbName=[IO.File]::ReadAllText("$script:DataDir/active-schema").Trim()
-   if($script:DbName -notmatch ('^ems_up_'+$Mode+'_v120_g[a-f0-9]{12}$')){throw 'Invalid upgraded database pointer'}
+   if($script:DbName -notmatch ('^ems_next_'+$Mode+'_v121_g[a-f0-9]{12}$')){throw 'Invalid upgraded database pointer'}
   }
  }
  Start-LocalDatabase $state;$startedDb=$true
@@ -45,9 +45,17 @@ try{
  if([int]$accounts -eq 0){Invoke-EmsFirstSetup $state}
  $executives=Invoke-EmsTool $script:MysqlExe @("--defaults-file=$cnf",'-N',$script:DbName,'-e','SELECT COUNT(*) FROM user_account a JOIN employee e ON e.id=a.employee_id WHERE a.account_status=1 AND e.employment_status=1 AND e.user_type=2')
  if([int]$executives -eq 0){throw '数据库已有记录但没有有效高层账号；不会重建或覆盖数据，请使用已验证的备份恢复'}
+ $networkModeFile=Join-Path $PSScriptRoot 'network-mode.json'
+ $networkMode='secure'
+ if(Test-Path -LiteralPath $networkModeFile){
+  $networkConfig=Get-Content -LiteralPath $networkModeFile -Raw -Encoding UTF8 | ConvertFrom-Json
+  if($networkConfig.mode -notin @('secure','compatibility')){throw 'Invalid network mode configuration'}
+  $networkMode=$networkConfig.mode
+ }
+ Write-Host "EMS network mode: $networkMode"
  $secret=Read-EmsSecrets
  Remove-Item -LiteralPath "$script:DataDir\stop.request","$script:DataDir\ready" -ErrorAction SilentlyContinue
- $vars=@{EMS_DATABASE_NAME=$script:DbName;EMS_DEV_DB_NAME=$script:DbName;EMS_UPGRADE_ROOT=$script:EmsRoot;EMS_UPGRADE_MODE=$Mode;EMS_DB_PORT=[string]$state.dbPort;EMS_DB_PASSWORD=$secret.app;EMS_HTTP_PORT=[string]$Port;EMS_SERVER_PORT=[string]$Port;EMS_SERVER_ADDRESS=$Address;EMS_INSTANCE_TOKEN=$secret.control;EMS_CONTROL_DIR=$script:DataDir;EMS_DEV_HTTP_PORT=[string]$Port;EMS_DEV_DB_PORT=[string]$state.dbPort;EMS_DEV_DB_PASSWORD=$secret.app}
+ $vars=@{EMS_NETWORK_MODE=$networkMode;EMS_DATABASE_NAME=$script:DbName;EMS_DEV_DB_NAME=$script:DbName;EMS_UPGRADE_ROOT=$script:EmsRoot;EMS_UPGRADE_MODE=$Mode;EMS_DB_PORT=[string]$state.dbPort;EMS_DB_PASSWORD=$secret.app;EMS_HTTP_PORT=[string]$Port;EMS_SERVER_PORT=[string]$Port;EMS_SERVER_ADDRESS=$Address;EMS_INSTANCE_TOKEN=$secret.control;EMS_CONTROL_DIR=$script:DataDir;EMS_DEV_HTTP_PORT=[string]$Port;EMS_DEV_DB_PORT=[string]$state.dbPort;EMS_DEV_DB_PASSWORD=$secret.app}
  foreach($key in $vars.Keys){$oldEnv[$key]=[Environment]::GetEnvironmentVariable($key,'Process');[Environment]::SetEnvironmentVariable($key,$vars[$key],'Process')}
  if($Mode -eq 'dev'){
   $cp="$script:EmsRoot\backend\target\dev-classpath.txt"
@@ -59,12 +67,12 @@ try{
  $state.app=Get-ProcessIdentity $p $script:JavaExe;$startedApp=$true;Save-EmsState $state
  for($i=0;$i -lt 120;$i++){
   if(-not(Get-OwnedProcess $state.app)){throw 'Application exited; inspect mode-specific application logs'}
-  if(Test-EmsReady $state){Write-Host "EMS v1.2.0 $Mode ready: http://$($Address):$Port";if($Mode -eq 'portable' -and -not $NoBrowser){Start-Process "http://127.0.0.1:$Port"};exit 0}
+  if(Test-EmsReady $state){Write-Host "EMS v1.2.1 $Mode ready: http://$($Address):$Port";if($Mode -eq 'portable' -and -not $NoBrowser){Start-Process "http://127.0.0.1:$Port"};exit 0}
   Start-Sleep -Seconds 1
  }
  throw 'Application readiness timed out'
 }catch{
- Write-EmsLog ('START FAILED: '+$_.Exception.Message)
+ Write-EmsLog ('START FAILED: '+$_.Exception.Message+'; trace: '+$_.ScriptStackTrace)
  $primary=$_.Exception.Message
  try{if($state){if($startedApp){Stop-EmsApplication $state};if($startedDb){Stop-EmsDatabase $state};Dismount-EmsNativeRoot $state;Save-EmsState $state}}catch{Write-EmsLog ('Cleanup incomplete: '+$_.Exception.Message)}
  Write-Error $primary -ErrorAction Continue;exit 1

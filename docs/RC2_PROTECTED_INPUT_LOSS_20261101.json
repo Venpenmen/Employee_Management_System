@@ -1,0 +1,63 @@
+{
+  "kind": "protected-input-loss",
+  "recordedAt": "2026-11-01T07:23:03.364006+00:00",
+  "confirmedByOperator": true,
+  "operatorStatement": "D盘我刚清理了一下，再不清就炸了",
+  "cause": "Operator cleaned the D: drive to free space; the 2026-10-28 development artifacts under dist/ were removed outside this task.",
+  "scope": "Development-only artifacts from 2026-10-28 under dist/; no shipped candidate, source file, database or documentation was involved.",
+  "action": "Entries were dropped from the active protected baseline after operator confirmation. Original paths and SHA256 digests are preserved in this record and must never be re-created, rewritten or treated as passing.",
+  "lostInputs": [
+    {
+      "path": "dist/database-compat-p0-20261028-final/EMS员工管理系统_v1.2.1-next-rc2_便携版_Windows_x64.zip",
+      "sha256": "6d82a8744ba6d033abef899ad1fc26b10db45b3e0208fd12afacff221acac4e4"
+    },
+    {
+      "path": "dist/database-compat-p0-20261028-final/EMS员工管理系统_v1.2.1-next-rc2_服务器版_Windows_x64.zip",
+      "sha256": "6d82a8744ba6d033abef899ad1fc26b10db45b3e0208fd12afacff221acac4e4"
+    },
+    {
+      "path": "dist/database-compat-p0-20261028-final/EMS员工管理系统_v1.2.1-next-rc2_源码.zip",
+      "sha256": "255ec75df647b7e74aa442a7b9c804d379ac89df4b72f1c8ca71eb651977c27c"
+    },
+    {
+      "path": "dist/database-compat-p0-20261028-final/PACKAGE_ACCEPTANCE.json",
+      "sha256": "90f6597b6b70c09e2ed3e7c669bcfb0345f0f50fcaa220d304f77b5d79ff5ef1"
+    },
+    {
+      "path": "dist/database-compat-p0-20261028-final/SHA256SUMS.txt",
+      "sha256": "9adf76030c9693e5c88cfb1f7f83ab784cc24cb99f11fe969076420479eaacf6"
+    },
+    {
+      "path": "dist/rc2-resume-20261028/EMS员工管理系统_v1.2.1-next-rc2_便携版_Windows_x64.zip",
+      "sha256": "a5c4cdb47c332d4436107793d514899e82a2e745fd25b05df808634d81b33591"
+    },
+    {
+      "path": "dist/rc2-resume-20261028/EMS员工管理系统_v1.2.1-next-rc2_服务器版_Windows_x64.zip",
+      "sha256": "a5c4cdb47c332d4436107793d514899e82a2e745fd25b05df808634d81b33591"
+    },
+    {
+      "path": "dist/rc2-resume-20261028/EMS员工管理系统_v1.2.1-next-rc2_源码.zip",
+      "sha256": "ed438b8959255727c117097c8eae27ad651dbf3bfcb2092b0f7d9ddd5f6e5afa"
+    },
+    {
+      "path": "dist/rc2-resume-20261028/SHA256SUMS.txt",
+      "sha256": "258d97ff9bd7e7d7486be68dc4bbaf2ba88df8755d1a31de973b8e9344f65ed4"
+    },
+    {
+      "path": "dist/network-mode-test/EMS_v1.2.1_network_mode_isolated/data/portable/database-jobs/10bab680-0b4a-4c5a-95b4-7c7a92b76d23/input.emsbk",
+      "sha256": "e94cb6f0be8d56c0750d58839af42bccd737600591eca74456cc0cd8ddd2c582"
+    },
+    {
+      "path": "dist/network-mode-test/EMS_v1.2.1_network_mode_isolated/data/portable/database-jobs/10bab680-0b4a-4c5a-95b4-7c7a92b76d23/status.json",
+      "sha256": "34d0d5f22af48b15cbf7fccd99f5f693b1c6d8db8a18935aefd3671ee3c5e139"
+    },
+    {
+      "path": "dist/network-mode-test/EMS_v1.2.1_network_mode_isolated/data/portable/database-jobs/10bab680-0b4a-4c5a-95b4-7c7a92b76d23/failed-target.json",
+      "sha256": "0293c32a3b9a91835abbfc0d652e99f171b7617d418882b208c14a5b5331c80d"
+    },
+    {
+      "path": "dist/network-mode-test/EMS_v1.2.1_network_mode_isolated/data/portable/database-jobs/10bab680-0b4a-4c5a-95b4-7c7a92b76d23/restore.log",
+      "sha256": "3bd29f5094249d594ee2a71d03807dcc3f696409b57d3625815685ee2696401b"
+    }
+  ]
+}

@@ -1,53 +1,89 @@
-> **develop 分支：EMS v1.2.0 开发基线**
->
-> 本分支提供工程框架、公共配置与模型、基础服务、数据库迁移及服务器与构建工具源码。
-> 当前 EmsApplication 用于无数据库框架验证；业务模块的启用与端到端验证范围见开发指南。
-> 下方安装与发布章节针对完整发行物；当前源码分支的运行范围与依赖要求以开发指南为准。
->
-> **构建**：JDK 17 与 Maven，在 backend 目录执行 mvn clean verify。
-> **框架运行**：在项目根运行 java -jar backend/target/employee-management-system-1.2.0.jar --server.address=127.0.0.1 --server.port=0 --ems.browser-auto-open=false。
-> 从日志读取随机端口，访问 /health；预期 status=UP、mode=development-framework、database=DISABLED。
-> 详见 [项目开发指南](DEVELOPMENT_GUIDE.md)。请勿为验证框架而连接真实 MySQL。
+# EMS 员工管理系统 v1.2.1 完整本地候选（RC2）
 
-# EMS 员工管理系统 v1.2.0
+候选标识 `v1.2.1-complete-rc2`，Maven 版本 `1.2.1`，数据库结构 Flyway V1/V2/V3。本目录是与历史 complete/RC1 相互隔离的独立安装：独立 JAR、独立数据目录 `data/complete-rc2/`、独立日志、独立 Cookie 命名空间与 MySQL 端口。
 
-基于 Spring Boot 3.4.5、Thymeleaf、MySQL 8 和 Java 17，提供员工与个人档案、部门职位、考勤、请假审批、工资及日志管理。三级角色为员工、经理、高层。本仓库提供 v1.2.0 正式版的安装、升级与开发说明。
+包内自带 Java 17 与 MySQL 运行库，无需安装 JDK/Maven/MySQL，无需联网，也不需要管理员权限。程序只监听本机回环地址，不会自动修改防火墙、网卡或开放端口。
 
-## 普通 Windows 用户
-下载 Releases 附件 `EMS_v1.2.0_Windows_Portable.zip`，核对 SHA256 后完整解压到普通用户可写的文件夹。内置 Java、MySQL 和运行库，无需安装 JDK/MySQL/Maven。不要直接在 ZIP 中运行。
+## 一、首次启动（服务器版）
 
-- 双击“启动服务器.bat”：首次自动建立空业务库，在本机窗口输入高层资料与密码；输入“取消”退出，下次可继续。完成后等待显示访问地址，用浏览器登录。
-- 服务器默认仅本机 `http://127.0.0.1:8283`，不自动打开浏览器。停止使用“停止服务器.bat”。
-- 单机便携使用“启动员工管理系统.bat”，默认 8281，完成首次设置后自动打开网页；使用对应停止 BAT。
-- 已初始化数据库不会重复创建高层。数据保存在各模式 data 下，停止后仍保留。
-- 局域网测试须显式指定本机 IPv4；程序不修改防火墙、VPN、FRP 或系统服务。数据库管理仅允许直接本机 HTTP 或实际 HTTPS。
+1. 把发行 ZIP 完整解压到**独立且可写**的目录，保留目录结构。目录要**浅**：整套路径建议不超过 120 个字符（例如 `F:\ems-rc2`）。Windows 单条路径上限是 260 字符，放太深时实例数据文件会超限，表现为启动或取本机入口代码时报「未能找到路径的一部分」；启动脚本现在会提前拦截并提示。
+2. 双击 `RC2_Initialize_Server.bat`：启动本安装的 MySQL、建库并建表；若库里还没有高层账号，会在控制台询问工号（6 位数字）、姓名、身份证号、手机号、出生日期、入职日期和密码（≥8 位且同时含字母与数字，输入两次确认）。输入「取消」可中止，下次继续；已有账号时拒绝重复初始化。
+3. 双击 `RC2_Start_Server.bat`：成功后控制台打印 `EMS v1.2.1 server ready: http://127.0.0.1:8483`。**此窗口不要关闭**，关闭即停止服务。
+4. 另开一个控制台运行 `RC2_Local_Entry_Code.bat`，取得一次性入口代码（90 秒内有效、只能用一次）。
+5. 本机浏览器打开 <http://127.0.0.1:8483>，在 `/local-entry` 输入该代码，再用第 2 步的账号密码登录。
 
-初始化只包含结构、字典和规则，无员工、演示账号或已知默认密码。服务器、便携、开发使用独立库、Cookie、状态、日志和凭据。MySQL 仅回环监听，独立端口 16506–16530；拒绝历史 8083/8183 及旧数据库地址。
+入口代码只用于证明操作者就在本机，不能代替账号登录；代码不会出现在 URL、日志或安装包中。
 
-## 旧版升级与可选示例
-v1.1.3 用户按 [升级指南](UPGRADE_v1.1.3_to_v1.2.0.md) 操作，不能直接覆盖整个旧目录或复制运行中的 MySQL 数据。
-`EMS_v1.2.0_DemoData.zip` 是独立可选的合成演示库，不自动安装。导入会整体替换当前模式数据库，先导出备份，详见 [演示指南](DEMO_DATABASE_GUIDE.md)。
+## 二、网络模式
 
-## 源码与开发
-GitHub Code → Download ZIP / Source code ZIP 是源码，不能当成免安装运行包。源码 ZIP 为 `EMS_v1.2.0_Source.zip`，不含 runtime、私有数据、日志或凭据。
+网络模式只有两种，用 `RC2_Network_Mode.bat` 选择，**保存只在实例停止时生效，重启后才是新模式**。
 
-使用完整 JDK17 与 Maven 3.9：
-1. 从同版已校验便携 ZIP 取得运行库：`powershell -File launcher/prepare-runtime.ps1 -RuntimeZip 路径`。
-2. `mvn -f backend/pom.xml test package dependency:build-classpath -Dmdep.outputFile=target/dev-classpath.txt`。
-3. `powershell -File launcher/stage-app.ps1`。
-4. “准备开发数据库.bat”创建独立开发实例；将 data/dev/idea.env 变量和 EMS_UPGRADE_ROOT=本工程路径加入 IDEA Run Configuration。
-5. 打开 backend/pom.xml，以完整 JDK17 运行 com.example.ems.EmsApplication，默认回环端口 8282，不加 server/portable Profile。IDEA 图形调试限制见 docs/IDEA调试说明.md。
+### 安全模式（默认）
 
-完整构建：`powershell -File launcher/build-release.ps1 -MavenExe Maven可执行路径`。脚本运行全部 Maven 测试、生成匹配 JAR/清单并按白名单打包。生成包不等于自动通过所有部署环境验证。
-源码主要目录：backend（Java、模板、迁移和测试）、frontend（静态资源来源）、server（生命周期/升级/备份）、launcher（构建校验）、bootstrap（干净结构和运行库哈希）、app（构建清单及历史迁移）。
+- 仅监听 `127.0.0.1:8483`（同端口 `localhost` 等价），本机 HTTP 必须走上面的单次入口代码。
+- 远程访问只能走原生 HTTPS Connector（需自备证书链并在 `server-complete-rc2/network-mode.json` 配置 `secureOrigin`、`httpsPort`、`keyStore`、`trustCertificate`）。
 
-## 备份、恢复与常见问题
-高层“数据库管理”每次需二次验证当前密码，导出使用独立备份口令；导入先预览、核对备份内高层账号，再确认切换。成功后重新登录。自设口令遗失不能解密；不要公开自己的备份或主机 DPAPI 文件。
-- 端口占用：释放本版占用或显式选择空闲端口；不停止未知进程。
-- 初始化取消/校验失败：不会创建半个账号，重新启动继续；已有数据不覆盖。
-- 提示构建不一致：完整解压正确发行包，不关闭校验。
-- 旧数据识别失败：保留现场，按升级指南检查；不要删除 data 强制新建。
+### 兼容模式（仅虚构或脱敏数据）
 
-更多版本信息请阅读 [v1.2.0 发布说明](RELEASE_NOTES_v1.2.0.md)、[安装与升级说明](docs/安装与升级.md) 和 [验收记录](RELEASE_VALIDATION_v1.2.0.md)。已完成的安装、升级及自动化验收不等于覆盖所有环境：纯净 Windows、真实第二设备、IDEA 图形界面及正式 HTTPS 部署仍需在实际使用环境中确认。公网访问需自行配置安全的 HTTPS 与访问控制，不应直接公开含真实员工敏感数据的测试服务。
+用于经 Sakura Frp 或其他代理做远程访问：
 
-开发工作目录中的 `.release-preserved`、`.release-evidence`、数据库、日志与凭据不属于公开交付内容。发布时应使用 `dist` 内按白名单生成的发行 ZIP 和对应 `SHA256SUMS.txt`，不要直接打包整个本地工程。
+- **不需要预先填写外部地址**：不再要求把某个域名写死进配置。经代理进来的任意 Host（域名 + 实际外部端口）都能进入，由服务端做 Host 与 Origin 的同源一致性校验。
+- 仍然要求：账号登录、三级权限、单有效会话、CSRF、高风险操作的重新授权、数据库恢复的预览绑定与显式确认；伪造 `X-Forwarded-*` 头不会升级入口身份。
+- 不会创建隧道、不扩大监听范围、不修改 FRP 或防火墙——隧道由你自己的 Frp 客户端建立。
+- 它接受任意域名，也就无法抵御 DNS rebinding 一类攻击，因此**只适用于虚构或脱敏数据**的真实性测试，不得承载真实敏感数据。
+
+开启步骤：停实例 → `RC2_Network_Mode.bat` 选「兼容模式」并勾选确认 → 保存 → 重启 → 用 Frp 客户端把本机 `127.0.0.1:8483` 映射出去 → 浏览器访问映射后的地址直接登录。换域名、换端口、换 Frp 节点都**不需要**改配置。
+
+### 被拒绝时怎么看（403 / 401）
+
+入口拒绝会直接返回 JSON，其中 `reason` 指明是哪条规则不合法，`hint` 给出可执行的处置建议，`request` 记录服务端本次实际看到的值（`host`、`remote`、`port`、`mode`、`expected`）：
+
+| reason | 含义 | 处置 |
+| --- | --- | --- |
+| `entry-port` | 连接进入的端口或安全标志不属于本实例 | 旧标签页可能停在旧端口，重新打开本实例地址 |
+| `remote-address` | 请求来源不是 `127.0.0.1` / `::1` | 代理需把请求转发到本机回环地址 |
+| `host-count` | `Host` 头出现多份 | 多为代理或安全软件注入，改用直连或换客户端 |
+| `host` | `Host` 不在本模式允许范围 | 安全模式只接受 `http://127.0.0.1:8483` 与 `http://localhost:8483`（端口以 `expected` 为准）；远程访问请用兼容模式 |
+| `origin` / `referer` / `cross-site` | 写操作跨源 | 从同一来源打开页面再提交 |
+| `secure-origin` | HTTPS 入口的 Origin 与 `secureOrigin` 不一致 | 检查 `network-mode.json` 的 `secureOrigin` |
+| `cookie-duplicate` / `realm-mismatch`（401） | Cookie 重复，或会话属于另一个入口世代 | 每次启动都会更换入口代次，重新取一次本机入口代码 |
+
+本机入口代码无效或过期时返回 `{"code":403,"msg":"需要有效的本机入口授权，或代码已过期、已使用"}`，重新运行 `RC2_Local_Entry_Code.bat` 取新代码即可（代码 90 秒有效、只能用一次）。
+
+## 三、数据库管理（/admin/database）
+
+基础模式提供标准加密备份与恢复；高级模式提供 v1.2.0 兼容导出、加密扩展伴随包与受控回程证明。
+
+恢复是**整体替换**而不是合并：先做隔离代际预览，只展示版本、表数量、记录数、扩展与冲突计数等结构摘要（详情默认折叠），确认必须绑定真实校验结果与显式选择；预览过期、文件被篡改、身份错配或存在安全冲突时不得提交。执行切换会注销所有会话，切换前自动保留恢复点。
+
+## 四、状态、日志与停止
+
+- `RC2_Status.bat` 查看版本、模式、监听地址、应用与数据库状态；
+- `RC2_View_Logs.bat` 打开本安装日志；
+- `RC2_Stop_Server.bat` 只停止本安装、可核验 PID/启动时间/可执行路径的实例，不会按进程名或端口批量结束进程。
+
+## 五、源码与开发
+
+源码发行包包含 `backend/`、`frontend/`、`server-complete-rc2/`、`docs/`、`tools/`。开发机需自备 JDK 17 与 Maven：
+
+```powershell
+./server-complete-rc2/initialize-server.ps1 -Mode dev      # 独立开发库
+./tools/build-complete-rc2.ps1 -MavenExe <本机 mvn.cmd>    # 离线全量测试并重建 JAR
+```
+
+IDEA 打开 `backend/pom.xml`，主类 `com.example.ems.EmsApplication`，运行配置载入本机生成的 `data/complete-rc2/dev/idea.env`（含开发凭据，禁止提交或分享）。开发与便携模式只允许安全本机入口。
+
+## 六、边界
+
+以下项目需要负责人按 `docs/RC2_ACCEPTANCE_CHECKLIST.md` 人工验收，自动化与本机测试不能替代：纯净 Windows 断网环境、真实第二设备、真实公网证书与实际 Frp 隧道、真实生产数据库迁移、IDEA GUI 操作。
+
+本地候选不等于正式发布：未推送远程仓库、未建 Release、未切换公网。
+
+## 七、文档
+
+- 部署与调试：[docs/RC2_DEPLOYMENT.md](docs/RC2_DEPLOYMENT.md)
+- 实现与验收台账：[docs/RC2_IMPLEMENTATION_LEDGER.md](docs/RC2_IMPLEMENTATION_LEDGER.md)
+- 交付报告：[docs/EMS_v1.2.1_COMPLETE_RC2_DELIVERY_REPORT.md](docs/EMS_v1.2.1_COMPLETE_RC2_DELIVERY_REPORT.md)
+- 人工验收清单：[docs/RC2_ACCEPTANCE_CHECKLIST.md](docs/RC2_ACCEPTANCE_CHECKLIST.md)
+- 备份与恢复：[docs/备份与恢复.md](docs/备份与恢复.md)
+- 已知边界：[docs/已知边界.md](docs/已知边界.md)

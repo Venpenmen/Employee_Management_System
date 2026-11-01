@@ -15,7 +15,7 @@ public class WebSessionIT {
  static void check(boolean ok,String name){if(!ok)throw new AssertionError(name);count++;System.out.println("PASS: "+name);}
  static ServletWebServerApplicationContext start(int port){
   String url=System.getenv("EMS_IT_URL");
-  if(url==null||!url.matches("jdbc:mysql://127\\.0\\.0\\.1:(1650[6-9]|165[12][0-9]|16530)/ems_up_server_v120\\?.*"))throw new IllegalStateException("Unsafe test database");
+  if(url==null||!url.matches("jdbc:mysql://127\\.0\\.0\\.1:(1660[6-9]|166[12][0-9]|16630)/ems_next_server_v121\\?.*"))throw new IllegalStateException("Unsafe test database");
   return (ServletWebServerApplicationContext)new SpringApplicationBuilder(EmsApplication.class).run(
    "--spring.profiles.active=server","--server.address=127.0.0.1","--server.port="+port,
    "--spring.datasource.url="+url,"--spring.datasource.username=ems_app","--ems.browser-auto-open=false",
@@ -38,7 +38,7 @@ public class WebSessionIT {
    var res=req("/login","employeeNo=260001&password="+URLEncoder.encode(System.getenv("EMS_TEST_PASSWORD"),StandardCharsets.UTF_8)+"&_csrf="+csrf);
    check(res.statusCode()==302,"Real servlet login succeeds");
   }
-  String id(){return cookies.getCookieStore().getCookies().stream().filter(c->c.getName().equals("EMS120U_SERVER")).findFirst().orElseThrow().getValue();}
+  String id(){return cookies.getCookieStore().getCookies().stream().filter(c->c.getName().equals("EMS121N_RC2_SERVER")).findFirst().orElseThrow().getValue();}
  }
  public static void main(String[] args)throws Exception{
   Browser stale;int port;

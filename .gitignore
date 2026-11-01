@@ -15,21 +15,31 @@
 /demo/
 *.dpapi*
 /server/*.backup*
+/tools/__pycache__/
+/.codex-continuation/test-work/
+/.codex-continuation/evidence/
+/.codex-continuation/STATE.json
+/.codex-continuation/STATE.previous.json
+/.codex-continuation/state.lock
+/.codex-continuation/command.lock
+/.codex-continuation/*.log
+/.codex-continuation/*-results.json
 
 /app/*.jar
 
-# Local-only state, credentials, archives and editor caches
-**/node_modules/
-/.idea/
-.env
-.env.*
-!.env.example
-*.log
-*.backup*
-*.bak
-*.emsbk
-*.pem
-*.p12
-*.pfx
-*.key
-*.zip
+/*.log
+
+/server-complete/server.json
+/server-complete/network-mode.json
+/app/build-manifest-complete.json
+/app/version-complete.json
+
+/.codex-continuation/checkpoints/
+
+/server-complete-rc2/network-mode.json
+/server-complete-rc2/*.partial
+/app/version-complete-rc2.json
+/app/build-manifest-complete-rc2.json
+/.codex-continuation/*.out
+
+/.codex-continuation/rerun-*.ps1

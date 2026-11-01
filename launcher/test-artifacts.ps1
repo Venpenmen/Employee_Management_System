@@ -2,6 +2,7 @@
 $root=Split-Path -Parent $PSScriptRoot
 . "$PSScriptRoot\artifact-common.ps1"
 $version=Get-ArtifactVersion $root
+$childShell=if(Test-Path -LiteralPath (Join-Path $PSHOME 'pwsh.exe')){Join-Path $PSHOME 'pwsh.exe'}else{"$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"}
 $checks=New-Object Collections.Generic.List[string]
 function Check($ok,$text){if(-not $ok){throw "FAILED: $text"};$checks.Add($text);Write-Host "PASS: $text"}
 function Reject($Block,$text){$denied=$false;try{& $Block}catch{$denied=$true};Check $denied $text}
@@ -72,7 +73,7 @@ try{
     $case.manifest.ownerId=$originalOwner;Write-ArtifactJson (Join-Path $case.path 'run.json') $case.manifest;Reopen-Run $case
     $null=Complete-ArtifactRun $case $true
     $case=New-ArtifactRun $root 'active-browser'
-    $proc=Start-Process -FilePath "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -ArgumentList @('-NoProfile','-Command','Start-Sleep -Seconds 45') -WindowStyle Hidden -PassThru
+    $proc=Start-Process -FilePath $childShell -ArgumentList @('-NoProfile','-Command','Start-Sleep -Seconds 45') -WindowStyle Hidden -PassThru
     Register-ArtifactProcess $case $proc 'browser'
     $code=Complete-ArtifactRun $case $true
     Check ($code -eq 2 -and -not $proc.HasExited) 'A still-running browser blocks directory cleanup without killing unrelated processes'
@@ -93,7 +94,7 @@ try{
     $common=Join-Path $root 'launcher/artifact-common.ps1'
     $scriptText=". '"+$common.Replace("'","''")+"';"+'$r=New-ArtifactRun '+"'"+$root.Replace("'","''")+"' 'killed-owner';"+'[IO.File]::WriteAllText('+"'"+$childContext.Replace("'","''")+"'"+',(Join-Path $r.path "run.json"));Start-Sleep -Seconds 60'
     $encoded=[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($scriptText))
-    $child=Start-Process -FilePath "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -ArgumentList @('-NoProfile','-EncodedCommand',$encoded) -WindowStyle Hidden -PassThru
+    $child=Start-Process -FilePath $childShell -ArgumentList @('-NoProfile','-EncodedCommand',$encoded) -WindowStyle Hidden -PassThru
     for($i=0;$i -lt 100 -and -not(Test-Path -LiteralPath $childContext);$i++){Start-Sleep -Milliseconds 100}
     Check (Test-Path -LiteralPath $childContext) 'Real child task publishes its owned context'
     $path=[IO.File]::ReadAllText($childContext)
@@ -109,7 +110,7 @@ try{
         $id='retention-'+$i.ToString('000')
         $dir=Join-Path $evidenceBase $id
         [IO.Directory]::CreateDirectory($dir)|Out-Null
-        Write-ArtifactJson (Join-Path $dir 'evidence.json') @{schema=1;managed=$true;root=$mock;id=$id;path=(Join-Path $mock ('.release-work/runs/'+$id));status='succeeded';keep=$false;createdAt=(Get-Date).AddMinutes(-100+$i).ToString('o')}
+        Write-ArtifactJson (Join-Path $dir 'evidence.json') @{schema=1;managed=$true;root=$mock;id=$id;path=(Join-Path $mock ('.release-work/runs/'+$id));status='succeeded';keep=$false;ownerTaskId=$env:EMS_DEVELOPMENT_TASK_ID;createdAt=(Get-Date).AddMinutes(-100+$i).ToString('o')}
         $large=[IO.File]::Create((Join-Path $dir 'synthetic.log'));try{$large.SetLength(11MB)}finally{$large.Dispose()}
     }
     $unknown=Join-Path $evidenceBase 'unmanaged'

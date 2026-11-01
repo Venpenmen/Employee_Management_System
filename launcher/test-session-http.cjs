@@ -1,3 +1,4 @@
+const cookieName=process.env.EMS_TEST_COOKIE_NAME||'EMS121N_RC2_SERVER';
 
 const fs=require('node:fs'),path=require('node:path');
 const [base,out]=process.argv.slice(2),password=process.env.EMS_TEST_PASSWORD;
@@ -14,7 +15,7 @@ class Client{
   for(const tag of text.matchAll(/<input\b[^>]*>/g)){if(/\bname="_csrf"/.test(tag[0])){const m=tag[0].match(/\bvalue="([^"]*)"/);if(m)this.token=m[1]}}
   return {status:response.status,text,location:response.headers.get('location')?new URL(response.headers.get('location'),base).pathname:null,headers:response.headers};
  }
- async login(no){await this.req('/login');let before=this.jar.EMS120U_SERVER;let r=await this.req('/login','POST',{employeeNo:no,password});check(r.status===302,'Login '+no);check(this.jar.EMS120U_SERVER!==before,'Session ID rotated '+no);return this}
+ async login(no){await this.req('/login');let before=this.jar[cookieName];let r=await this.req('/login','POST',{employeeNo:no,password});check(r.status===302,'Login '+no);check(this.jar[cookieName]!==before,'Session ID rotated '+no);return this}
 }
 
 (async()=>{

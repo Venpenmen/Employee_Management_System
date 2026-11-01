@@ -30,13 +30,15 @@ function Get-ArtifactBytes([string]$Path) {return [long]((Get-ArtifactFiles $Pat
 function Get-ArtifactVersion([string]$Root){
  $pom=Join-Path $Root 'backend/pom.xml'
  if(Test-Path -LiteralPath $pom){return ([xml][IO.File]::ReadAllText($pom)).project.version}
- $manifest=Join-Path $Root 'app/version.json'
+ $manifest=Join-Path $Root 'app/version-complete-rc2.json'
+ if(-not(Test-Path -LiteralPath $manifest)){$manifest=Join-Path $Root 'app/version-complete.json'}
+ if(-not(Test-Path -LiteralPath $manifest)){$manifest=Join-Path $Root 'app/version.json'}
  if(-not(Test-Path -LiteralPath $manifest)){throw 'Project or runtime version manifest is missing'}
  $version=(Get-Content -LiteralPath $manifest -Raw -Encoding UTF8|ConvertFrom-Json).version
  if($version -notmatch '^\d+\.\d+\.\d+$'){throw 'Invalid runtime version manifest'}
  return $version
 }
-function New-ArtifactRun([string]$Root,[string]$Kind,[switch]$KeepArtifacts){
+function New-ArtifactRun([string]$Root,[string]$Kind,[switch]$KeepArtifacts,[ValidateSet('legacy','complete-rc2')][string]$EvidenceGroup='legacy'){
     $rootPath=Assert-ArtifactPath $Root $Root -AllowRoot
     if($Kind -notmatch '^[a-z-]+$'){throw 'Invalid task kind'}
     $runs=Join-Path $rootPath '.release-work/runs';$locks=Join-Path $runs '.locks'
@@ -49,6 +51,9 @@ function New-ArtifactRun([string]$Root,[string]$Kind,[switch]$KeepArtifacts){
     $lock=[IO.File]::Open((Join-Path $locks ($id+'.lock')),'OpenOrCreate','ReadWrite','None')
     $self=Get-Process -Id $PID
     $manifest=[pscustomobject]@{schema=1;managed=$true;id=$id;root=$rootPath;path=$path;kind=$Kind;version=[string](Get-ArtifactVersion $rootPath);createdAt=(Get-Date).ToString('o');ownerId=$PID;ownerTicks=$self.StartTime.ToUniversalTime().Ticks.ToString();keep=[bool]$KeepArtifacts;status='running';cleanup='pending';reason='';reclaimedBytes=0}
+    if($EvidenceGroup -eq 'complete-rc2'){$manifest|Add-Member -NotePropertyName evidenceGroup -NotePropertyValue $EvidenceGroup}
+    $manifest|Add-Member -NotePropertyName ownerTaskId -NotePropertyValue ([string]$env:EMS_DEVELOPMENT_TASK_ID)
+    $manifest|Add-Member -NotePropertyName ownerExecutable -NotePropertyValue ([string]$self.Path)
     Write-ArtifactJson (Join-Path $path 'run.json') $manifest
     return [pscustomobject]@{root=$rootPath;path=$path;id=$id;manifest=$manifest;lock=$lock}
 }
@@ -58,9 +63,9 @@ function Read-ArtifactContext([string]$Root,[string]$ContextPath){
     if($m.schema -ne 1 -or -not $m.managed -or $m.root -ne [IO.Path]::GetFullPath($Root).TrimEnd('\') -or $m.path -ne [IO.Path]::GetDirectoryName($path) -or $m.id -ne [IO.Path]::GetFileName($m.path)){throw 'Invalid task ownership manifest'}
     return [pscustomobject]@{root=$m.root;path=$m.path;id=$m.id;manifest=$m;lock=$null}
 }
-function Register-ArtifactInstance($Run,[string]$Fixture){
+function Register-ArtifactInstance($Run,[string]$Fixture,[ValidateSet('server','server-complete','server-complete-rc2')][string]$RuntimeDirectory='server'){
     $full=Assert-ArtifactPath $Run.path $Fixture
-    Write-ArtifactJson (Join-Path $Run.path ('instance-'+[guid]::NewGuid().ToString('N')+'.json')) @{fixture=$full}
+    Write-ArtifactJson (Join-Path $Run.path ('instance-'+[guid]::NewGuid().ToString('N')+'.json')) @{fixture=$full;runtimeDirectory=$RuntimeDirectory}
 }
 function Register-ArtifactProcess($Run,$Process,[string]$Purpose){
     Write-ArtifactJson (Join-Path $Run.path ('process-'+$Process.Id+'.json')) @{id=$Process.Id;ticks=$Process.StartTime.ToUniversalTime().Ticks.ToString();exe=$Process.Path;purpose=$Purpose}
@@ -74,15 +79,19 @@ function Test-ArtifactProcess($Identity){
 }
 function Stop-ArtifactInstances($Run){
     foreach($record in (Get-ChildItem -LiteralPath $Run.path -Filter 'instance-*.json' -File)){
-        $fixture=(Get-Content -LiteralPath $record.FullName -Raw -Encoding UTF8|ConvertFrom-Json).fixture
+        $registration=Get-Content -LiteralPath $record.FullName -Raw -Encoding UTF8|ConvertFrom-Json
+        $fixture=$registration.fixture
+        $runtimeDirectory=if($registration.runtimeDirectory){[string]$registration.runtimeDirectory}else{'server'}
+        if($runtimeDirectory -notin @('server','server-complete','server-complete-rc2')){throw 'Unrecognized registered runtime directory'}
+        $dataPrefix=if($runtimeDirectory -eq 'server-complete-rc2'){'data/complete-rc2/'}elseif($runtimeDirectory -eq 'server-complete'){'data/complete/'}else{'data/'}
         $null=Assert-ArtifactPath $Run.path $fixture
         if(-not(Test-Path -LiteralPath $fixture)){continue}
         foreach($mode in @('server','portable','dev')){
-            $modeState=Join-Path $fixture ("data/"+$mode+"/instance-upgrade.json")
+            $modeState=Join-Path $fixture ($dataPrefix+$mode+"/instance-upgrade.json")
             if(Test-Path -LiteralPath $modeState){
                 $saved=Get-Content -LiteralPath $modeState -Raw -Encoding UTF8|ConvertFrom-Json
                 if(-not $saved.app -and -not $saved.database -and -not $saved.nativeDrive){continue}
-                $null=& "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File (Join-Path $fixture 'server/stop-server.ps1') -Mode $mode
+                $null=& "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File (Join-Path $fixture ($runtimeDirectory+'/stop-server.ps1')) -Mode $mode
                 if($LASTEXITCODE -ne 0){throw "Instance stop failed: $fixture ($mode)"}
                 $saved=Get-Content -LiteralPath $modeState -Raw -Encoding UTF8|ConvertFrom-Json
                 if($saved.app -or $saved.database -or $saved.nativeDrive){throw "Instance remains active: $fixture ($mode)"}
@@ -163,23 +172,49 @@ function Save-ArtifactEvidence($Run){
     Write-ArtifactJson (Join-Path $dest 'evidence.json') $record
     return $dest
 }
-function Limit-ArtifactEvidence([string]$Root){
+function Limit-ArtifactEvidence([string]$Root,[long]$MaximumBytes=200MB,[string]$PreserveDirectory,[ValidateSet('legacy','complete-rc2')][string]$EvidenceGroup='legacy'){
+    # Without an explicit current task scope, preserve every pre-existing evidence set.
+    if(-not $env:EMS_DEVELOPMENT_TASK_ID){return}
     $base=Join-Path $Root '.release-evidence'
     [IO.Directory]::CreateDirectory((Join-Path $Root '.release-work'))|Out-Null
     $maintenance=[IO.File]::Open((Join-Path $Root '.release-work/evidence-maintenance.lock'),'OpenOrCreate','ReadWrite','None')
     try{
-    $items=@(Get-ArtifactFiles $base|Where-Object{$_.Name -eq 'evidence.json'}|ForEach-Object{
+    # Module acceptance can reference an older SQL/browser run not explicitly
+    # pinned in its manifest. Never invalidate a checkpoint to meet retention.
+    $referenced=New-Object 'Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
+    if($PreserveDirectory){$null=$referenced.Add((Assert-ArtifactPath $base $PreserveDirectory))}
+    $continuation=Join-Path $Root '.codex-continuation'
+    if(Test-Path -LiteralPath $continuation){
+      foreach($proof in Get-ChildItem -LiteralPath $continuation -Filter '*-results.json' -File){
+        $report=Get-Content -LiteralPath $proof.FullName -Raw -Encoding UTF8|ConvertFrom-Json
+        foreach($input in $report.inputs){
+          if($input.path -match '^\.release-evidence[/\\][^/\\]+[/\\][^/\\]+[/\\][^/\\]+$'){
+            $path=Assert-ArtifactPath $base (Join-Path $Root $input.path)
+            $null=$referenced.Add([IO.Path]::GetDirectoryName($path))
+          }
+        }
+      }
+    }
+    $all=@(Get-ArtifactFiles $base|Where-Object{$_.Name -eq 'evidence.json'}|ForEach-Object{
         $m=Get-Content -LiteralPath $_.FullName -Raw -Encoding UTF8|ConvertFrom-Json
-        if($m.schema -eq 1 -and $m.managed -and $m.root -eq $Root -and $m.id -eq $_.Directory.Name -and $m.path -eq (Join-Path $Root ('.release-work/runs/'+$m.id)) -and -not $m.keep -and $m.status -in @('succeeded','failed')){[pscustomobject]@{path=$_.DirectoryName;time=$m.createdAt}}
+        $group=if($m.evidenceGroup){[string]$m.evidenceGroup}else{'legacy'}
+        if($group -eq $EvidenceGroup -and $m.ownerTaskId -eq $env:EMS_DEVELOPMENT_TASK_ID -and $m.schema -eq 1 -and $m.managed -and $m.root -eq $Root -and $m.id -eq $_.Directory.Name -and $m.path -eq (Join-Path $Root ('.release-work/runs/'+$m.id)) -and -not $m.keep -and $m.status -in @('succeeded','failed')){[pscustomobject]@{path=$_.DirectoryName;time=$m.createdAt;bytes=(Get-ArtifactBytes $_.DirectoryName);pinned=($m.retentionPinned -eq $true -or $referenced.Contains($_.DirectoryName))}}
     }|Sort-Object time)
-    $count=$items.Count
+    $items=@($all|Where-Object {-not $_.pinned})
+    # Unknown/pinned files cannot be reclaimed. Never destroy all valid evidence in
+    # a futile attempt to compensate for an already oversized protected archive.
+    $total=Get-ArtifactBytes $base
+    $reclaimable=[long](($items|Measure-Object bytes -Sum).Sum)
+    if($total-$reclaimable -gt $MaximumBytes){throw 'Pinned or unmanaged evidence alone exceeds budget; retained all managed evidence; review protected archives manually'}
+    $count=$all.Count
     foreach($entry in $items){
-        if($count -le 20 -and (Get-ArtifactBytes $base) -le 200MB){break}
+        if($count -le 20 -and (Get-ArtifactBytes $base) -le $MaximumBytes){break}
         $target=Assert-ArtifactPath $base $entry.path
         $null=@(Get-ArtifactFiles $target -Strict)
         Remove-Item -LiteralPath $target -Recurse -Force;$count--
     }
-    if((Get-ArtifactBytes $base) -gt 200MB){throw 'Pinned or unmanaged evidence exceeds the automatic retention budget'}
+    if((Get-ArtifactBytes $base) -gt $MaximumBytes){throw 'Pinned or unmanaged evidence exceeds the automatic retention budget'}
+    if($count -gt 20){throw 'Verified pinned evidence exceeds task count budget; retained rather than invalidating checkpoints'}
     }finally{$maintenance.Dispose()}
 }
 function Complete-ArtifactRun {
@@ -209,7 +244,7 @@ function Complete-ArtifactRun {
     }
     if($evidence){Write-ArtifactJson (Join-Path $evidence 'evidence.json') $Run.manifest}
     if(Test-Path -LiteralPath $Run.path){Write-ArtifactJson (Join-Path $Run.path 'run.json') $Run.manifest}
-    try{Limit-ArtifactEvidence $Run.root}catch{Write-Warning $_.Exception.Message;if($code -eq 0){$code=2}}
+    try{Limit-ArtifactEvidence $Run.root -PreserveDirectory $evidence -EvidenceGroup $(if($Run.manifest.evidenceGroup){[string]$Run.manifest.evidenceGroup}else{'legacy'})}catch{Write-Warning $_.Exception.Message;if($code -eq 0){$code=2}}
     Write-Host ("Task {0}: {1}; cleanup={2}; reclaimed={3} bytes; evidence={4}" -f $Run.id,$Run.manifest.status,$Run.manifest.cleanup,$Run.manifest.reclaimedBytes,$evidence)
     return $code
 }
@@ -222,10 +257,19 @@ function Resolve-ArtifactTool([string]$Explicit,[string]$Name){
 
 function Invoke-ArtifactNative([string]$Exe,[string[]]$Arguments,[string]$LogFile){
     $ErrorActionPreference="Continue"
-    if([IO.Path]::GetFileName($Exe) -ieq 'powershell.exe'){
+    if([IO.Path]::GetFileName($Exe) -in @('powershell.exe','pwsh.exe')){
         $out=$LogFile+'.stdout';$err=$LogFile+'.stderr'
         $quoted=@($Arguments|ForEach-Object {if($_.Contains('"')){throw 'Embedded executable quotes refused'};'"'+$_+'"'}) -join ' '
-        $p=Start-Process -FilePath $Exe -ArgumentList $quoted -WindowStyle Hidden -RedirectStandardOutput $out -RedirectStandardError $err -PassThru
+        $moduleEnvironment=@{}
+        try{
+            # A PS7 module path can hide Windows PowerShell's built-in security
+            # module. Let this child reconstruct its own paths, then restore the
+            # calling process immediately; never change the machine environment.
+            if([IO.Path]::GetFileName($Exe) -eq 'powershell.exe'){
+                foreach($name in @('PSModulePath','PSModuleAnalysisCachePath')){$moduleEnvironment[$name]=[Environment]::GetEnvironmentVariable($name,'Process');[Environment]::SetEnvironmentVariable($name,$null,'Process')}
+            }
+            $p=Start-Process -FilePath $Exe -ArgumentList $quoted -WindowStyle Hidden -RedirectStandardOutput $out -RedirectStandardError $err -PassThru
+        }finally{foreach($name in $moduleEnvironment.Keys){[Environment]::SetEnvironmentVariable($name,$moduleEnvironment[$name],'Process')}}
         try{
             # Wait only for the launcher, never for its deliberately detached MySQL/JVM descendants.
             $null=$p.Handle;$p.WaitForExit();$code=$p.ExitCode;if($null -eq $code){throw 'Launcher exit code unavailable'}

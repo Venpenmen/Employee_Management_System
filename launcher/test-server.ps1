@@ -25,7 +25,7 @@ try{
  New-Item -ItemType Directory -Path "$fixture\backend\target\classes" -Force|Out-Null
  Copy-Item -Path "$root\backend\target\classes\*" -Destination "$fixture\backend\target\classes" -Recurse
  Copy-Item -LiteralPath "$root\backend\target\dev-classpath.txt" -Destination "$fixture\backend\target\dev-classpath.txt"
- Write-ArtifactJson "$fixture\test-fixture.json" @{run=$run.id;version='1.2.0'}
+ Write-ArtifactJson "$fixture\test-fixture.json" @{run=$run.id;version='1.2.1'}
  Register-ArtifactInstance $run $fixture
  $env:EMS_TEST_PASSWORD='Qa'+[Guid]::NewGuid().ToString('N')+'7';$env:EMS_BROWSER_AUTO_OPEN='false'
  Run "$fixture\server\initialize-server.ps1" @('-DatabaseOnly') 'initialize'
@@ -125,6 +125,6 @@ finally{
  $env:PATH=$oldPath;$env:EMS_TEST_PASSWORD=$oldPassword;$env:EMS_BROWSER_AUTO_OPEN=$oldBrowser
  # Generic owned-run finalizer handles every registered mode and verifies all recorded processes.
  $exitCode=Complete-ArtifactRun $run -Succeeded:$success -OriginalError $failure
- Write-Host "Acceptance evidence: .release-evidence/1.2.0 or v1.2.0/$($run.id)"
+ Write-Host "Acceptance evidence: .release-evidence/1.2.1 or v1.2.1/$($run.id)"
  exit $exitCode
 }

@@ -1,7 +1,7 @@
-﻿param([Parameter(Mandatory=$true)][string]$Fixture)
+﻿param([Parameter(Mandatory=$true)][string]$Fixture,[ValidateSet('server','server-complete')][string]$RuntimeDirectory='server')
 $ErrorActionPreference='Stop'
 if(-not(Test-Path -LiteralPath "$Fixture/test-fixture.json")){throw 'Synthetic fixture required'}
-. "$Fixture/server/runtime-common.ps1" -Mode server
+. "$Fixture/$RuntimeDirectory/runtime-common.ps1" -Mode server
 $lock=$null
 try{
  $lock=Enter-EmsLock;$s=Read-EmsState;Mount-EmsNativeRoot $s;$cnf=Write-ClientConfig $s

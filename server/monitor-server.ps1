@@ -50,7 +50,7 @@ function Get-Stats($p,$key){
 function Render {
  $s=$null;$readError=''
  if(Test-Path -LiteralPath $stateFile){
-  try{$s=Get-Content -LiteralPath $stateFile -Raw -Encoding UTF8|ConvertFrom-Json;if($s.version -ne '1.2.0' -or $s.mode -ne $Mode){throw '实例版本或模式不匹配'}}catch{$s=$null;$readError=$_.Exception.Message}
+  try{$s=Get-Content -LiteralPath $stateFile -Raw -Encoding UTF8|ConvertFrom-Json;if($s.version -ne '1.2.1' -or $s.mode -ne $Mode){throw '实例版本或模式不匹配'}}catch{$s=$null;$readError=$_.Exception.Message}
  }
  $java=Join-Path $root 'runtime\java\bin\java.exe'
  $mysql=Join-Path $root 'runtime\mysql\bin\mysqld.exe'
@@ -75,7 +75,7 @@ function Render {
  }
  if(-not $NoClear){Clear-Host}
  Write-Host '============================================='
- Write-Host ' EMS v1.2.0 实时服务器监控（只读）'
+ Write-Host ' EMS v1.2.1 实时服务器监控（只读）'
  Write-Host '============================================='
  Write-Host "时间：$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')  模式：$Mode  刷新：$Interval 秒"
  Write-Host "总体状态：$overall"

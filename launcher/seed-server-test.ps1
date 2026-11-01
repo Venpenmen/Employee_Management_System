@@ -1,6 +1,6 @@
-﻿param([Parameter(Mandatory=$true)][string]$Fixture,[string]$Mode='server')
+﻿param([Parameter(Mandatory=$true)][string]$Fixture,[string]$Mode='server',[ValidateSet('server','server-complete','server-complete-rc2')][string]$RuntimeDirectory='server')
 $ErrorActionPreference='Stop'
-. "$Fixture\server\runtime-common.ps1" -Mode $Mode
+. "$Fixture\$RuntimeDirectory\runtime-common.ps1" -Mode $Mode
 if(-not(Test-Path -LiteralPath "$Fixture\test-fixture.json")){throw 'Not an isolated test fixture'}
 $lock=$null;$old=@{}
 try{

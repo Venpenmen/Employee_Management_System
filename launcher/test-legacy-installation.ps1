@@ -23,7 +23,7 @@ try{
   }else{
   foreach($name in @('runtime','app','bootstrap','server','launcher')){Copy-Item -LiteralPath (Join-Path $root $name) -Destination (Join-Path $f $name) -Recurse}
   }
-  Write-ArtifactJson "$f/test-fixture.json" @{run=$run.id;version='1.2.0';buildId='v1.2.0-rc1'};Register-ArtifactInstance $run $f
+  Write-ArtifactJson "$f/test-fixture.json" @{run=$run.id;version='1.2.1';buildId='v1.2.1-next-rc2'};Register-ArtifactInstance $run $f
   Run "$f/server/initialize-server.ps1" @('-DatabaseOnly') ($label+'-initialize')
   Run "$root/launcher/prepare-legacy-installation.ps1" @('-Fixture',$f,'-ProjectRoot',$root,'-Label',$label) ($label+'-prepare')
   $source=if($label -eq '113'){Join-Path $f 'data/mysql'}else{Join-Path $f 'data/server/mysql'}

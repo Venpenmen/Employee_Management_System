@@ -7,7 +7,7 @@ $script:JavaExe = Join-Path $script:EmsRoot 'runtime\java\bin\java.exe'
 $script:MysqlHome = Join-Path $script:EmsRoot 'runtime\mysql'
 $script:MysqlExe = Join-Path $script:MysqlHome 'bin\mysql.exe'
 $script:MysqldExe = Join-Path $script:MysqlHome 'bin\mysqld.exe'
-$script:JarFile = Join-Path $script:EmsRoot 'app\ems-1.2.0-rc1.jar'
+$script:JarFile = Join-Path $script:EmsRoot 'app\ems-1.2.1-next-rc2.jar'
 $script:Utf8 = New-Object Text.UTF8Encoding($false)
 $script:NativeRoot = $null
 if (-not ('Ems.DosDevice' -as [type])) {
@@ -26,10 +26,10 @@ namespace Ems {
 
 
 $script:Mode=$Mode
-$script:DbName=@{server='ems_up_server_v120';portable='ems_up_portable_v120';dev='ems_up_dev_v120'}[$Mode]
+$script:DbName=@{server='ems_next_server_v121';portable='ems_next_portable_v121';dev='ems_next_dev_v121'}[$Mode]
 if(Test-Path -LiteralPath (Join-Path $script:DataDir 'active-schema')){
  $candidate=[IO.File]::ReadAllText((Join-Path $script:DataDir 'active-schema')).Trim()
- if($candidate -notmatch ('^ems_up_'+$Mode+'_v120(_g[a-z0-9]{12})?$')){throw 'Invalid active database pointer'}
+ if($candidate -notmatch ('^ems_next_'+$Mode+'_v121(_g[a-z0-9]{12})?$')){throw 'Invalid active database pointer'}
  $script:DbName=$candidate
 }
 . "$script:EmsRoot\launcher\artifact-common.ps1"
@@ -180,7 +180,7 @@ function Start-EmsDatabase($State) {
 
 function Assert-Package {
  $manifest=Get-Content -LiteralPath "$script:EmsRoot/app/build-manifest.json" -Raw -Encoding UTF8|ConvertFrom-Json
- if($manifest.buildId -ne 'v1.2.0-rc1' -or $manifest.jar -ne 'ems-1.2.0-rc1.jar' -or (Get-FileHash -LiteralPath $script:JarFile).Hash -ne $manifest.sha256){throw 'Program files are incomplete or from a different build; data retained'}
+ if($manifest.buildId -ne 'v1.2.1-next-rc2' -or $manifest.jar -ne 'ems-1.2.1-next-rc2.jar' -or (Get-FileHash -LiteralPath $script:JarFile).Hash -ne $manifest.sha256){throw 'Program files are incomplete or from a different build; data retained'}
 
  foreach($p in @($script:JavaExe,$script:MysqlExe,$script:MysqldExe,$script:JarFile,"$script:EmsRoot\bootstrap\schema.sql","$script:EmsRoot\app\migrations\profile-v1.1.1.sql")){
   if(-not(Test-Path -LiteralPath $p -PathType Leaf)){throw "Missing runtime file: $p"}
@@ -196,12 +196,14 @@ function Assert-Package {
  }
 
 }
-function New-EmsState {return [pscustomobject]@{version='1.2.0';mode=$script:Mode;dbPort=16506;httpPort=8283;address='127.0.0.1';nativeDrive='';app=$null;database=$null}}
+function New-EmsState {return [pscustomobject]@{version='1.2.1';buildId='v1.2.1-next-rc2';installRoot=$script:EmsRoot;mode=$script:Mode;dbPort=16606;httpPort=8383;address='127.0.0.1';nativeDrive='';app=$null;database=$null}}
 function Read-EmsState {
  $file="$script:DataDir\instance-upgrade.json"
  if(Test-Path -LiteralPath $file){
   $s=Get-Content -LiteralPath $file -Raw -Encoding UTF8|ConvertFrom-Json
-  if($s.mode -ne $script:Mode -or $s.version -ne '1.2.0' -or $s.dbPort -lt 16506 -or $s.dbPort -gt 16530 -or $s.httpPort -in @(8083,8183)){throw 'Invalid instance ownership'}
+  if($s.buildId -ne 'v1.2.1-next-rc2'){throw '运行状态不属于rc2；不会启停旧版实例。请保留旧安装并使用独立新目录升级'}
+  if($s.installRoot -ne $script:EmsRoot){if($s.app -or $s.database -or $s.nativeDrive){throw '移动前必须确认本包已完整停止；不操作旧路径进程'};$s.installRoot=$script:EmsRoot}
+  if($s.mode -ne $script:Mode -or $s.version -ne '1.2.1' -or $s.dbPort -lt 16606 -or $s.dbPort -gt 16630 -or $s.httpPort -in @(8083,8183)){throw 'Invalid instance ownership'}
   return $s
  }
  return $null
@@ -236,7 +238,7 @@ function Initialize-EmsDatabase {
  $staging="$script:DataDir\mysql-v3-initializing"
  if(Test-Path -LiteralPath $staging){throw 'Interrupted initialization retained; inspect before retry'}
  Invoke-EmsTool $script:MysqldExe @('--no-defaults','--no-monitor','--initialize-insecure',"--basedir=$script:MysqlHome","--datadir=$staging",'--console') -TimeoutSeconds 240|Out-Null
- Write-Utf8 "$staging\ems-engine.ready" '1.2.0'
+ Write-Utf8 "$staging\ems-engine.ready" '1.2.1'
  Assert-ArtifactPath $script:EmsRoot $staging|Out-Null;Assert-ArtifactPath $script:EmsRoot $db|Out-Null
  Move-Item -LiteralPath $staging -Destination $db
 }
@@ -257,7 +259,7 @@ function Wait-EmsDatabase($State){
   if(-not(Test-Path -LiteralPath "$script:DataDir\accounts-upgrade.ready")){
    $secret=Read-EmsSecrets
    try{Invoke-EmsTool $script:MysqlExe @('--no-defaults','--protocol=TCP','--host=127.0.0.1',"--port=$($State.dbPort)",'--user=root','--skip-password','--connect-timeout=2') -InputText "ALTER USER 'root'@'localhost' IDENTIFIED BY '$($secret.root)';"|Out-Null
-    Write-Utf8 "$script:DataDir\accounts-upgrade.ready" '1.2.0';return
+    Write-Utf8 "$script:DataDir\accounts-upgrade.ready" '1.2.1';return
    }catch{}
   }
   Start-Sleep -Seconds 1
@@ -275,15 +277,21 @@ function Invoke-EmsMaintenance([string]$Command,$State,[string]$Job='',[switch]$
 }
 function Update-EmsSchema($State){
  $config=Write-ClientConfig $State;$secret=Read-EmsSecrets
+ $historyCount=[int](Invoke-EmsTool $script:MysqlExe @("--defaults-file=$config",'-N','-e',"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='$script:DbName' AND table_name='flyway_schema_history'"))
+ if($historyCount -gt 0){
+  $version=Invoke-EmsTool $script:MysqlExe @("--defaults-file=$config",'-N',$script:DbName,'-e',"SELECT version FROM flyway_schema_history WHERE success=1 AND version IS NOT NULL ORDER BY installed_rank DESC LIMIT 1")
+  if($version.Trim() -ne '3'){throw '此数据库尚非rc2结构，禁止自动原地迁移。请保留旧安装，验证加密备份后在全新rc2安装中通过隔离导入升级；旧库不会被清空或repair。'}
+ }
+
  Invoke-EmsTool $script:MysqlExe @("--defaults-file=$config") -InputText "CREATE DATABASE IF NOT EXISTS $script:DbName CHARACTER SET utf8mb4;CREATE USER IF NOT EXISTS 'ems_app'@'127.0.0.1' IDENTIFIED BY '$($secret.app)';GRANT SELECT,INSERT,UPDATE,DELETE ON $script:DbName.* TO 'ems_app'@'127.0.0.1';"|Out-Null
  Invoke-EmsMaintenance 'migrate' $State
- Write-Utf8 "$script:DataDir\migration.json" (@{version='1.2.0';buildId='v1.2.0-rc1';schemaVersion=2;authority='flyway_schema_history';legacyManifestNotAuthoritative=$true}|ConvertTo-Json)
+ Write-Utf8 "$script:DataDir\migration.json" (@{version='1.2.1';buildId='v1.2.1-next-rc2';schemaVersion=3;authority='flyway_schema_history';legacyManifestNotAuthoritative=$true}|ConvertTo-Json)
 }
 function Start-LocalDatabase($State){
  Mount-EmsNativeRoot $State;Save-EmsState $State;Initialize-EmsDatabase
  if(-not(Get-OwnedProcess $State.database)){
-  $preferred=@{server=16506;portable=16507;dev=16508}[$script:Mode]
-  $State.dbPort=Find-FreePort 16506 16530 $preferred;Save-EmsState $State;Start-EmsDatabase $State
+  $preferred=@{server=16606;portable=16607;dev=16608}[$script:Mode]
+  $State.dbPort=Find-FreePort 16606 16630 $preferred;Save-EmsState $State;Start-EmsDatabase $State
  }
  Wait-EmsDatabase $State;Update-EmsSchema $State
 }
@@ -291,7 +299,7 @@ function Stop-EmsApplication($State){
  $p=Get-OwnedProcess $State.app
  if($p){
   $secret=Read-EmsSecrets;Write-Utf8 "$script:DataDir\stop.request" $secret.control
-  if(-not $p.WaitForExit(30000)){throw 'Application did not stop; state and database retained, no forced termination'}
+  if(-not $p.WaitForExit(60000)){throw 'Application did not stop; state and database retained, no forced termination'}
  }
  $State.app=$null;Remove-Item -LiteralPath "$script:DataDir\ready" -ErrorAction SilentlyContinue;Save-EmsState $State
 }
@@ -326,10 +334,16 @@ function Recover-EmsPendingSwitch($State){
  foreach($file in Get-ChildItem -LiteralPath $folder -Filter 'switch-journal.json' -Recurse -File){
   Assert-ArtifactPath $folder $file.FullName|Out-Null
   $journal=Get-Content -LiteralPath $file.FullName -Raw -Encoding UTF8|ConvertFrom-Json
-  if($journal.mode -ne $script:Mode -or $journal.buildId -ne 'v1.2.0-rc1'){throw 'Unknown switch journal ownership'}
+  if($journal.mode -ne $script:Mode -or $journal.buildId -ne 'v1.2.1-next-rc2'){throw 'Unknown switch journal ownership'}
   if($journal.phase -notin @('PREPARED','POINTER_SWITCHED','COMMITTED','ROLLED_BACK','ROLLED_BACK_AFTER_INTERRUPTION','ABORTED')){throw 'Unknown switch journal phase; preserve for inspection'}
+  # Terminal journals cannot own an in-progress switch; their old PIDs may have been reused.
+  if($journal.phase -in @('COMMITTED','ROLLED_BACK','ROLLED_BACK_AFTER_INTERRUPTION','ABORTED')){
+   if((Test-Path -LiteralPath "$script:DataDir/maintenance.flag") -and [IO.File]::ReadAllText("$script:DataDir/maintenance.flag") -eq $file.Directory.Name){Remove-Item -LiteralPath "$script:DataDir/maintenance.flag","$script:DataDir/quiesced" -ErrorAction SilentlyContinue}
+   continue
+  }
   if(-not $journal.ownerId -or -not $journal.ownerTicks -or -not $journal.ownerExe){throw 'Switch owner cannot be established; manual inspection required'}
   $owner=Get-Process -Id $journal.ownerId -ErrorAction SilentlyContinue
+  if($owner -and (-not $owner.StartTime -or -not $owner.Path)){throw 'Cannot verify active switch owner; retained for inspection'}
   $live=$owner -and $owner.StartTime.ToUniversalTime().Ticks.ToString() -eq [string]$journal.ownerTicks -and [string]::Equals($owner.Path,[string]$journal.ownerExe,[StringComparison]::OrdinalIgnoreCase)
   if($live){
    if($env:EMS_SWITCH_TASK -eq $file.Directory.Name){continue}
@@ -350,7 +364,7 @@ function Recover-EmsPendingSwitch($State){
    if((Test-Path -LiteralPath "$script:DataDir/maintenance.flag") -and [IO.File]::ReadAllText("$script:DataDir/maintenance.flag") -eq $file.Directory.Name){Remove-Item -LiteralPath "$script:DataDir/maintenance.flag","$script:DataDir/quiesced" -ErrorAction SilentlyContinue}
    continue
   }
-  if($journal.old -notmatch ('^ems_up_'+$script:Mode+'_v120(_g[a-f0-9]{12})?$') -or $journal.target -notmatch ('^ems_up_'+$script:Mode+'_v120_g[a-f0-9]{12}$')){throw 'Invalid switch journal target'}
+  if($journal.old -notmatch ('^ems_next_'+$script:Mode+'_v121(_g[a-f0-9]{12})?$') -or $journal.target -notmatch ('^ems_next_'+$script:Mode+'_v121_g[a-f0-9]{12}$')){throw 'Invalid switch journal target'}
   $pointer=Join-Path $script:DataDir 'active-schema'
   if(-not(Test-Path -LiteralPath $pointer) -or [IO.File]::ReadAllText($pointer).Trim() -notin @([string]$journal.old,[string]$journal.target)){throw 'Switch journal differs from active generation; preserve data for inspection'}
   $maintenance=Join-Path $script:DataDir 'maintenance.flag'

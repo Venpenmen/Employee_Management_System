@@ -15,7 +15,7 @@ try{
  Assert-ArtifactPath $Fixture $source|Out-Null;Assert-ArtifactPath $Fixture $target|Out-Null
  if(Test-Path -LiteralPath $target){throw 'Refuse existing legacy fixture'}
  Copy-Item -LiteralPath $source -Destination $target -Recurse
- Write-Utf8 (Join-Path $oldData 'instance.json') (@{version=$(if($Label -eq '113'){'1.1.3'}else{'1.2.0'});app=$null;database=$null;nativeDrive=''}|ConvertTo-Json)
+ Write-Utf8 (Join-Path $oldData 'instance.json') (@{version=$(if($Label -eq '113'){'1.1.3'}else{'1.2.1'});app=$null;database=$null;nativeDrive=''}|ConvertTo-Json)
  if($Label -eq '113'){Write-Utf8 (Join-Path $oldData 'credentials.json') (@{root=$secret.root;app=$secret.app}|ConvertTo-Json)}
  else{$wrapped=@{};foreach($key in @('root','app','control')){$wrapped[$key]=ConvertFrom-SecureString (ConvertTo-SecureString $secret.$key -AsPlainText -Force)};Write-Utf8 (Join-Path $oldData 'credentials.dpapi.json') ($wrapped|ConvertTo-Json)}
  Write-Host "PASS: stopped synthetic legacy$Label installation prepared"

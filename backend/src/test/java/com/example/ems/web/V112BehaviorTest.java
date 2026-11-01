@@ -81,7 +81,8 @@ class V112BehaviorTest {
     @Test void successfulLoginRotatesOnlySuccessfulSession() throws Exception {
         var auth=mock(AuthService.class);when(auth.login("260005"," Password123 ")).thenReturn(employee);
         when(auth.login("260005","wrong")).thenThrow(new IllegalArgumentException("工号或密码错误"));
-        var mvc=MockMvcBuilders.standaloneSetup(new AuthController(auth,mock(com.example.ems.service.SessionService.class))).setViewResolvers(new org.springframework.web.servlet.view.InternalResourceViewResolver("/views/",".html")).build();
+        var sessions=mock(com.example.ems.service.SessionService.class);when(sessions.issue(employee.id()," Password123 ")).thenReturn("a".repeat(43));
+        var mvc=MockMvcBuilders.standaloneSetup(new AuthController(auth,sessions)).setViewResolvers(new org.springframework.web.servlet.view.InternalResourceViewResolver("/views/",".html")).build();
         var session=new MockHttpSession();String before=session.getId();
         mvc.perform(post("/login").session(session).param("employeeNo","260005").param("password"," Password123 ")).andExpect(redirectedUrl("/dashboard"));
         assertNotEquals(before,session.getId());assertEquals(employee,session.getAttribute("user"));

@@ -1,5 +1,10 @@
-@echo off
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0server\check-server.ps1" 
-set "EMS_EXIT=%ERRORLEVEL%"
-pause
-exit /b %EMS_EXIT%
+@echo off
+
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0server\check-server.ps1" 
+
+set "EMS_EXIT=%ERRORLEVEL%"
+
+pause
+
+exit /b %EMS_EXIT%
+

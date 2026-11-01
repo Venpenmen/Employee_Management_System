@@ -1,6 +1,6 @@
 server:
   address: 127.0.0.1
-  port: ${EMS_DEV_HTTP_PORT:8282}
+  port: ${EMS_DEV_HTTP_PORT:8382}
   shutdown: graceful
   error:
     include-message: never
@@ -10,7 +10,7 @@ server:
       timeout: 30m
       tracking-modes: cookie
       cookie:
-        name: EMS120U_DEV
+        name: EMS121N_RC2_DEV
         http-only: true
         same-site: lax
         secure: ${EMS_COOKIE_SECURE:false}
@@ -23,7 +23,7 @@ spring:
       validation-timeout: 1000
       maximum-pool-size: 10
       minimum-idle: 2
-    url: jdbc:mysql://127.0.0.1:${EMS_DEV_DB_PORT:16508}/${EMS_DEV_DB_NAME:ems_up_dev_v120}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+    url: jdbc:mysql://127.0.0.1:${EMS_DEV_DB_PORT:16608}/${EMS_DEV_DB_NAME:ems_next_dev_v121}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
     username: ems_app
     password: ${EMS_DEV_DB_PASSWORD:}
     driver-class-name: com.mysql.cj.jdbc.Driver

@@ -8,7 +8,7 @@ try{
  $seen=New-Object 'Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
  foreach($e in $zip.Entries){if($e.FullName -match '(^/|\\|:|(^|/)\.\.(/|$))' -or -not $seen.Add($e.FullName)){throw 'Unsafe ZIP path'}}
  $entry=$zip.GetEntry('app/version.json');$reader=New-Object IO.StreamReader($entry.Open());try{$v=$reader.ReadToEnd()|ConvertFrom-Json}finally{$reader.Dispose()}
- if($v.version -ne '1.2.0' -or $v.buildId -ne 'v1.2.0-rc1'){throw 'Use the matching rc1 runtime package'}
+ if($v.version -ne '1.2.1' -or $v.buildId -ne 'v1.2.1-next-rc2'){throw 'Use the matching rc1 runtime package'}
  $runtimeRecords=Get-Content "$root/bootstrap/runtime-sha256.json" -Raw -Encoding UTF8|ConvertFrom-Json
  foreach($record in $runtimeRecords){
   if($record.path -notmatch '^runtime/'){throw 'Unexpected runtime manifest path'}

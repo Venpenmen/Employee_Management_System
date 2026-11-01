@@ -16,7 +16,7 @@ class Client{
   for(const tag of text.matchAll(/<input\b[^>]*>/g)){if(/\bname="_csrf"/.test(tag[0])){const m=tag[0].match(/\bvalue="([^"]*)"/);if(m)this.token=m[1]}}
   return {status:response.status,text,location:response.headers.get('location')?new URL(response.headers.get('location'),base).pathname:null,headers:response.headers};
  }
- async login(no){await this.req('/login');let before=this.jar.EMS120U_SERVER;let r=await this.req('/login','POST',{employeeNo:no,password});check(r.status===302,'Login '+no);check(this.jar.EMS120U_SERVER!==before,'Session ID rotated '+no);return this}
+ async login(no){await this.req('/login');let before=this.jar.EMS121N_RC2_SERVER;let r=await this.req('/login','POST',{employeeNo:no,password});check(r.status===302,'Login '+no);check(this.jar.EMS121N_RC2_SERVER!==before,'Session ID rotated '+no);return this}
 }
 
 
@@ -44,14 +44,18 @@ const backupPassword='SyntheticBackupPassphrase123!';
   let nonce=await step(admin,'inspect'),body=new FormData();body.set('_csrf',admin.token);body.set('grant',nonce);body.set('backupPassword',pass);body.set('file',new Blob([bytes]),'synthetic.emsbk');
   let r=await fetch(base+'/api/admin/database/import',{method:'POST',headers:{Cookie:Object.entries(admin.jar).map(([k,v])=>k+'='+v).join('; ')},body,redirect:'manual'});check(r.status===200,'Import preview queued');return (await r.json()).data.task;
  }
- let wrong=await preview('IncorrectBackupPassphrase123');await wait(admin,wrong,'FAILED');check((await admin.req('/api/me')).status===200,'Wrong decrypt key leaves current database and login valid');
+ let wrong=await preview('IncorrectBackupPassphrase123');const failure=await wait(admin,wrong,'FAILED');
+ check(failure.diagnostic?.code==='BACKUP_INVALID'&&failure.diagnostic.phase==='decrypt','Child Java diagnostic survives PowerShell and asynchronous job status');
+ check(failure.diagnostic.activeDatabase==='UNCHANGED'&&failure.diagnostic.errorId===wrong,'Diagnostic binds task and unchanged active database');
+ const diagnostic=JSON.stringify(failure.diagnostic);check(!diagnostic.includes('IncorrectBackupPassphrase123')&&!diagnostic.includes(fixture)&&!diagnostic.includes('jdbc:mysql'),'Public diagnostic excludes passphrase, local path and connection URL');
+ check((await admin.req('/api/me')).status===200,'Wrong decrypt key leaves current database and login valid');
  let restored=await preview(backupPassword);await wait(admin,restored,'PREVIEW_READY');check((await admin.req('/api/me')).status===200,'Isolated preview does not switch current database');
  let nonce=await step(admin,'commit',restored),confirmation=await api(admin,'import/'+restored+'/confirm',{grant:nonce,restoredEmployeeNo:'260001',restoredPassword:password});check(confirmation.r.status===200,'Validated import confirmation accepted');
  for(let i=0;i<120;i++){try{let s=JSON.parse(fs.readFileSync(path.join(fixture,'data/server/database-jobs',restored,'status.json'),'utf8'));if(s.state==='SUCCEEDED'&&!fs.existsSync(path.join(fixture,'data/server/maintenance.flag')))break;if(['FAILED','ROLLED_BACK','RECOVERY_REQUIRED'].includes(s.state))throw Error('Switch '+s.state);if(i===119)throw Error('Switch timeout')}catch(e){if(!e.message.includes('ENOENT'))throw e}await new Promise(r=>setTimeout(r,1000))}
  check((await admin.req('/api/me')).status===401,'Import invalidates pre-switch executive session');
  check((await employee.req('/api/me')).status===401,'Import invalidates pre-switch employee session');
  admin=await new Client().login('260001');check((await admin.req('/profile')).status===200,'Restored BCrypt account can log in and view profile');
- let stamp=fs.readFileSync(path.join(fixture,'data/server/active-schema'),'utf8').trim();check(/^ems_up_server_v120_g[a-f0-9]{12}$/.test(stamp),'Controlled switch uses a distinct generation');
+ let stamp=fs.readFileSync(path.join(fixture,'data/server/active-schema'),'utf8').trim();check(/^ems_next_server_v121_g[a-f0-9]{12}$/.test(stamp),'Controlled switch uses a distinct generation');
  const backups=fs.readdirSync(path.join(fixture,'data/server/backups'));check(backups.length>0,'Pre-import encrypted automatic backup exists');
  // A second isolated import injects a post-pointer failure and must roll back safely.
  const second=await preview(backupPassword);await wait(admin,second,'PREVIEW_READY');
