@@ -14,6 +14,7 @@ public class ProfileCsrfInterceptor implements HandlerInterceptor {
     @Override
     public boolean preHandle(HttpServletRequest request,HttpServletResponse response,Object handler) throws Exception {
         String path=RequestPaths.path(request);
+        if(request.getDispatcherType()==jakarta.servlet.DispatcherType.ASYNC&&"/api/security/events".equals(path)&&Boolean.TRUE.equals(request.getAttribute("ems.sse.authorized")))return true;
         if(path.startsWith("/internal/portable/")) return true;
         var session=request.getSession();
         String token;

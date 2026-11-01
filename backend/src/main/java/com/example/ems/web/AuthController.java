@@ -21,11 +21,12 @@ public class AuthController {
             synchronized(session){
                 Object previous=session.getAttribute("user");String previousToken=com.example.ems.service.SessionService.token(session);
                 request.changeSessionId();String token=sessions.issue(authenticated.id(),password);
+                if(token==null)throw new IllegalArgumentException("账号已安全冻结，请联系高层处理");
                 try{session.setAttribute("user",authenticated);session.setAttribute(com.example.ems.service.SessionService.TOKEN,token);}
                 catch(IllegalStateException closed){sessions.revoke(authenticated.id(),token);throw closed;}
                 if(previous instanceof SessionUser old && !old.id().equals(authenticated.id()))sessions.revoke(old.id(),previousToken);
             }
-            return "redirect:/dashboard";
+            return sessions.restricted(authenticated.id())?"redirect:/security/temporary-password":"redirect:/dashboard";
         }
         catch(Exception e){model.addAttribute("error",UserErrors.message(e));model.addAttribute("employeeNo",employeeNo);return "login";}
     }
@@ -37,14 +38,17 @@ public class AuthController {
     }
     @PostMapping("/logout") public String logout(HttpSession session){
         synchronized(session){
-            Object u=session.getAttribute("user");if(u instanceof SessionUser user)sessions.revoke(user.id(),com.example.ems.service.SessionService.token(session));
-            session.invalidate();
+            try {
+                Object u=session.getAttribute("user");if(u instanceof SessionUser user)sessions.revoke(user.id(),com.example.ems.service.SessionService.token(session));
+            } finally {
+                try { session.invalidate(); } catch (IllegalStateException alreadyClosed) { /* idempotent local logout */ }
+            }
         }
         return "redirect:/login";
     }
     @GetMapping("/password") public String password(){return "password";}
     @PostMapping("/password") public String password(@RequestParam String oldPassword,@RequestParam String newPassword,@RequestParam String confirmPassword,HttpSession session,Model model){
-        try{if(!newPassword.equals(confirmPassword))throw new IllegalArgumentException("两次新密码不一致");SessionUser u=(SessionUser)session.getAttribute("user");authService.changePassword(u.id(),oldPassword,newPassword);session.invalidate();return "redirect:/login?reason=password-changed";}
+        try{if(!newPassword.equals(confirmPassword))throw new IllegalArgumentException("两次新密码不一致");SessionUser u=(SessionUser)session.getAttribute("user");String observed=com.example.ems.service.SessionService.token(session);authService.changePassword(u.id(),oldPassword,newPassword);com.example.ems.service.SessionService.invalidateObserved(session,u.id(),observed);return "redirect:/login?reason=password-changed";}
         catch(Exception e){model.addAttribute("error",UserErrors.message(e));}return "password";
     }
 }
