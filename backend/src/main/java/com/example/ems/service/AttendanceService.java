@@ -49,6 +49,7 @@ public class AttendanceService {
 
     @Transactional
     public void checkIn(SessionUser user,String ip){
+        sessions.guardPersonal(user.id());
         jdbc.queryForObject("SELECT id FROM employee WHERE id=? FOR UPDATE",Long.class,user.id());
         if(!today(user).isEmpty()) throw new IllegalArgumentException("今天已经完成上班打卡，不能重复打卡");
         LocalDateTime now=LocalDateTime.now(); Map<String,Object> r=rule();
@@ -61,6 +62,7 @@ public class AttendanceService {
 
     @Transactional
     public void checkOut(SessionUser user,String ip){
+        sessions.guardPersonal(user.id());
         jdbc.queryForObject("SELECT id FROM employee WHERE id=? FOR UPDATE",Long.class,user.id());
         Map<String,Object> record=today(user);
         if(record.isEmpty()||record.get("check_in_time")==null) throw new IllegalArgumentException("请先完成上班打卡");

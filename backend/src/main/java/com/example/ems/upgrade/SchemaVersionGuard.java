@@ -7,8 +7,9 @@ import org.springframework.stereotype.Component;import org.springframework.boot.
   try(var c=data.getConnection()){
    Schema.safeUrl(c.getMetaData().getURL());
    if(!Schema.names(c).contains("flyway_schema_history"))throw new IllegalStateException("Prepare database with the local migration launcher before running the application");
+   Schema.known(c);if(!Schema.names(c).containsAll(Schema.TABLES)||!Schema.names(c).containsAll(Schema.EPHEMERAL))throw new IllegalStateException("数据库结构不完整，禁止业务启动");Schema.relations(c);
    try(var s=c.createStatement();var rows=s.executeQuery("SELECT version FROM flyway_schema_history WHERE success=1 AND version IS NOT NULL ORDER BY installed_rank DESC LIMIT 1")){
-    if(!rows.next()||!"2".equals(rows.getString(1)))throw new IllegalStateException("Database version does not match this build");
+    if(!rows.next()||!"3".equals(rows.getString(1)))throw new IllegalStateException("Database version does not match this build");
    }
   }
   var f=org.flywaydb.core.Flyway.configure().dataSource(data).locations("classpath:db/upgrade").cleanDisabled(true).baselineOnMigrate(false).load();f.validate();

@@ -25,6 +25,7 @@ public final class UserErrors {
         return failure.message();
     }
     public static Failure describe(Throwable error){
+        if(error instanceof org.springframework.dao.ConcurrencyFailureException)return new Failure(409,"并发操作冲突，请刷新后重试");
         if(error instanceof DataIntegrityViolationException)
             return new Failure(409,"数据已变化或与已有记录冲突，请刷新后重试");
         if(error instanceof DataAccessException)return unexpected(error);

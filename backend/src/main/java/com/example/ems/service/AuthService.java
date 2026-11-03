@@ -37,6 +37,7 @@ public class AuthService {
         if (locked != null && locked.isAfter(LocalDateTime.now())) throw new IllegalArgumentException("账户已锁定，请稍后再试");
         Long id = ((Number) row.get("id")).longValue();
         if (!encoder.matches(password, String.valueOf(row.get("password_hash")))) {
+            if(sessions!=null)sessions.failedTemporary(id);
             jdbc.update("""
                 UPDATE user_account
                 SET locked_until=IF(failed_login_count>=4,DATE_ADD(NOW(),INTERVAL 15 MINUTE),locked_until),
@@ -63,8 +64,8 @@ public class AuthService {
             throw new IllegalArgumentException("身份证后六位必须为六位，前五位为数字，末位为数字或X");
         identitySuffix = identitySuffix.toUpperCase(java.util.Locale.ROOT);
         if (!phone.matches("^1[3-9]\\d{9}$")) throw new IllegalArgumentException("请输入正确的十一位手机号");
-        if (password == null || password.length() < 8 || !password.matches(".*[A-Za-z].*") || !password.matches(".*\\d.*"))
-            throw new IllegalArgumentException("密码至少8位，且必须包含字母和数字");
+        if (password == null || password.length() < 8 || password.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 72 || !password.matches(".*[A-Za-z].*") || !password.matches(".*\\d.*"))
+            throw new IllegalArgumentException("密码至少8位、最多72字节，且必须包含字母和数字");
         List<Map<String, Object>> rows = jdbc.queryForList("SELECT id,name,identity_number,employment_status FROM employee WHERE employee_no=?", employeeNo);
         if (rows.isEmpty()) throw new IllegalArgumentException("工号不存在，请确认已由高层招聘");
         Map<String, Object> row = rows.get(0);

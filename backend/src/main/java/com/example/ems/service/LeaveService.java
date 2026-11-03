@@ -32,6 +32,7 @@ public class LeaveService {
 
     @Transactional
     public String submit(String type,LocalDateTime start,LocalDateTime end,String reason,SessionUser u){
+        sessions.guardPersonal(u.id());
         if(start==null||end==null||!end.isAfter(start)) throw new IllegalArgumentException("结束时间必须晚于开始时间");
         if(reason==null||reason.isBlank()) throw new IllegalArgumentException("请假原因不能为空");
         jdbc.queryForObject("SELECT id FROM employee WHERE id=? FOR UPDATE",Long.class,u.id());
@@ -78,6 +79,7 @@ public class LeaveService {
 
     @Transactional
     public void withdraw(String requestNo,SessionUser u){
+        sessions.guardPersonal(u.id());
         Map<String,Object> r=jdbc.queryForMap("SELECT * FROM leave_request WHERE request_no=? FOR UPDATE",requestNo);Long id=((Number)r.get("id")).longValue();
         if(!u.id().equals(((Number)r.get("employee_id")).longValue())) throw new IllegalArgumentException("只能撤回自己的申请");
         if(jdbc.update("UPDATE leave_request SET status=4,current_approver_id=NULL,finish_time=NOW() WHERE id=? AND status=1",id)==0) throw new IllegalArgumentException("只有待审批申请可以撤回");

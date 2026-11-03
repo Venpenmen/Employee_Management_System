@@ -14,18 +14,19 @@ public final class BackupCrypto {
   Path part=Path.of(dest+".partial");
   var file=Files.newOutputStream(part,StandardOpenOption.CREATE_NEW);
   try(var out=new DataOutputStream(file)){out.write(MAGIC);out.writeInt(600000);out.write(salt);out.write(iv);try(var encrypted=new CipherOutputStream(out,cipher)){Files.copy(plain,encrypted);}}
-  catch(Exception e){Files.deleteIfExists(part);throw e;}
+  catch(Exception e){try{Files.deleteIfExists(part);}catch(Exception cleanup){e.addSuppressed(cleanup);}throw e;}
   Files.move(part,dest);
  }
  public static void decrypt(Path source,Path plain,char[] password)throws Exception{
   if(Files.exists(plain))throw new java.nio.file.FileAlreadyExistsException(plain.toString());
   if(Files.size(source)>512L*1024*1024)throw new IllegalArgumentException("备份文件超过512MiB");
+  boolean created=false;
   try(var in=new DataInputStream(Files.newInputStream(source))){
    if(!Arrays.equals(in.readNBytes(8),MAGIC))throw new IllegalArgumentException("不支持的备份格式");
    int rounds=in.readInt();if(rounds!=600000)throw new IllegalArgumentException("不支持的密钥参数");
    byte[] salt=in.readNBytes(16),iv=in.readNBytes(12);if(salt.length!=16||iv.length!=12)throw new IllegalArgumentException("备份已截断");
    var cipher=Cipher.getInstance("AES/GCM/NoPadding");cipher.init(Cipher.DECRYPT_MODE,key(password,salt,rounds),new GCMParameterSpec(128,iv));cipher.updateAAD(MAGIC);
-   try(var encrypted=new CipherInputStream(in,cipher);var out=Files.newOutputStream(plain,StandardOpenOption.CREATE_NEW)){byte[] buffer=new byte[65536];long n=0;int read;while((read=encrypted.read(buffer))!=-1){n+=read;if(n>4L*1024*1024*1024)throw new IllegalArgumentException("恢复数据超过4GiB");out.write(buffer,0,read);}}
-  }catch(Exception e){Files.deleteIfExists(plain);throw new IllegalArgumentException("备份口令不正确、文件被篡改或格式无效",e);}
+   try(var encrypted=new CipherInputStream(in,cipher);var out=Files.newOutputStream(plain,StandardOpenOption.CREATE_NEW)){created=true;byte[] buffer=new byte[65536];long n=0;int read;while((read=encrypted.read(buffer))!=-1){n+=read;if(n>4L*1024*1024*1024)throw new IllegalArgumentException("恢复数据超过4GiB");out.write(buffer,0,read);}}
+  }catch(Exception e){if(created)try{Files.deleteIfExists(plain);}catch(Exception cleanup){e.addSuppressed(cleanup);}throw new IllegalArgumentException("备份口令不正确、文件被篡改或格式无效",e);}
  }
 }

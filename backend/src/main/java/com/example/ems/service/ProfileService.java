@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 
 @Service
 public class ProfileService {
+    @org.springframework.beans.factory.annotation.Autowired private SessionService sessions;
     public enum Section {
         EDUCATION("education","employee_education","教育经历"),
         EXPERIENCE("experience","employee_experience","工作经历"),
@@ -85,6 +86,7 @@ public class ProfileService {
     }
     @Transactional
     public void saveBasic(ProfileForms.Basic form,SessionUser actor) {
+        sessions.guardPersonal(actor.id());
         validate(form);
         // Serialize saves for one person, then check the version supplied by the open form.
         jdbc.queryForObject("SELECT id FROM employee WHERE id=? FOR UPDATE",Long.class,actor.id());
@@ -114,6 +116,7 @@ public class ProfileService {
     }
     @Transactional
     public void saveEntry(Section section,Long id,ProfileForms.Entry form,SessionUser actor) {
+        sessions.guardPersonal(actor.id());
         boolean compatible=switch(section) {
             case EDUCATION -> form instanceof ProfileForms.Education;
             case EXPERIENCE -> form instanceof ProfileForms.Experience;
@@ -140,6 +143,7 @@ public class ProfileService {
     }
     @Transactional
     public void deleteEntry(Section section,Long id,SessionUser actor) {
+        sessions.guardPersonal(actor.id());
         if(jdbc.update("DELETE FROM "+section.table+" WHERE id=? AND employee_id=?",id,actor.id())!=1)
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,"记录不存在或不属于您");
         logs.log(actor.id(),"PROFILE_ENTRY_DELETE","EMPLOYEE_PROFILE",actor.id(),"删除"+section.label+"记录");

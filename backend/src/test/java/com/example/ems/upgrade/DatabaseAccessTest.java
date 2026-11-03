@@ -8,7 +8,7 @@ class DatabaseAccessTest {
  @BeforeEach void setup(){
   when(manager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
   when(jdbc.queryForObject("SELECT password_hash FROM user_account WHERE employee_id=? FOR UPDATE",String.class,1L)).thenReturn(new BCryptPasswordEncoder().encode("SyntheticPassword123"));
-  access=new DatabaseAccess(sessions,auth,jdbc,manager);request=new MockHttpServletRequest();request.setRemoteAddr("127.0.0.1");request.setServerName("127.0.0.1");var session=new MockHttpSession();session.setAttribute("user",executive);session.setAttribute(SessionService.TOKEN,"a".repeat(43));request.setSession(session);
+  access=new DatabaseAccess(sessions,auth,jdbc,manager);request=new MockHttpServletRequest();request.setRemoteAddr("127.0.0.1");request.setServerName("127.0.0.1");var session=new MockHttpSession();session.setAttribute("user",executive);session.setAttribute(SessionService.TOKEN,"a".repeat(43));request.setSession(session);request.setAttribute("ems.auth.observedUserId",1L);request.setAttribute("ems.auth.observedToken","a".repeat(43));
  }
  @Test void grantSingleUseAndBoundToAction(){
   String grant=access.issue(request,"SyntheticPassword123","export","");assertEquals(1L,access.consume(request,grant,"export","").id());assertThrows(Exception.class,()->access.consume(request,grant,"export",""));
@@ -19,7 +19,7 @@ class DatabaseAccessTest {
  }
  @Test void expiredGrantRejected()throws Exception{
   String token=access.issue(request,"SyntheticPassword123","export","");var field=DatabaseAccess.class.getDeclaredField("grants");field.setAccessible(true);
-  @SuppressWarnings("unchecked") var map=(Map<String,DatabaseAccess.Grant>)field.get(access);var g=map.get(token);map.put(token,new DatabaseAccess.Grant(g.user(),g.token(),g.action(),g.object(),0));assertThrows(Exception.class,()->access.consume(request,token,"export",""));
+  @SuppressWarnings("unchecked") var map=(Map<String,DatabaseAccess.Grant>)field.get(access);var g=map.get(token);map.put(token,new DatabaseAccess.Grant(g.user(),g.token(),g.action(),g.object(),0,g.entry()));assertThrows(Exception.class,()->access.consume(request,token,"export",""));
  }
  @Test void managerAndRemoteHttpRejectedEvenWithExistingSession(){
   request.getSession().setAttribute("user",new SessionUser(2L,"260002","虚构经理",1,1L,"测试"));assertThrows(Exception.class,()->access.user(request));
@@ -29,9 +29,40 @@ class DatabaseAccessTest {
  @Test void forwardedPlaintextRequestIsNotLocalAuthorization(){
   request.addHeader("X-Forwarded-For","192.168.1.20");assertThrows(Exception.class,()->access.user(request));
  }
+ @Test void plaintextLocalRejectsAlternativeProxyHeaders(){
+  request.addHeader("X-Forwarded-Host","evil.example");
+  assertEquals(403,assertThrows(org.springframework.web.server.ResponseStatusException.class,()->access.user(request)).getStatusCode().value());
+  var other=new MockHttpServletRequest();other.setRemoteAddr("127.0.0.1");other.setServerName("localhost");other.addHeader("X-Real-IP","198.51.100.10");
+  assertEquals(403,assertThrows(org.springframework.web.server.ResponseStatusException.class,()->access.user(other)).getStatusCode().value());
+ }
+ @Test void sakuraHttpsTerminationMustNotTrustSpoofedHeaders(){
+  request.setRemoteAddr("127.0.0.1");request.setServerName("www.u3089790.nyat.app");
+  request.addHeader("X-Forwarded-Proto","https");request.addHeader("X-Forwarded-For","203.0.113.10");
+  var denied=assertThrows(org.springframework.web.server.ResponseStatusException.class,()->access.user(request));
+  assertEquals(403,denied.getStatusCode().value());
+  request.setSecure(true);
+  assertEquals(1L,access.user(request).id());
+ }
+ @Test void publicHttpWithoutForwardedHeadersIsStillDenied(){
+  request.setRemoteAddr("198.51.100.20");request.setServerName("www.u3089790.nyat.app");
+  assertEquals(403,assertThrows(org.springframework.web.server.ResponseStatusException.class,()->access.user(request)).getStatusCode().value());
+ }
  @Test void repeatedBadReauthenticationIsThrottled(){
   when(auth.login(anyString(),anyString())).thenThrow(new IllegalArgumentException("bad credentials"));
   for(int i=0;i<5;i++)assertThrows(Exception.class,()->access.issue(request,"wrong","export",""));
   var exception=assertThrows(org.springframework.web.server.ResponseStatusException.class,()->access.issue(request,"SyntheticPassword123","export",""));assertEquals(429,exception.getStatusCode().value());
+ }
+ @Test void changedSessionCannotLendItsNewIdentityToAnEarlierRequest(){
+  String original=DatabaseAccess.observedHash(request);assertNotNull(original);request.getSession().setAttribute(SessionService.TOKEN,"b".repeat(43));assertThrows(SessionService.SessionExpired.class,()->DatabaseAccess.observedHash(request));
+ }
+ @Test void missingRequestObservationFailsClosed(){request.removeAttribute("ems.auth.observedToken");assertThrows(SessionService.SessionExpired.class,()->DatabaseAccess.observedHash(request));}
+ @Test void wrongEntryCannotConsumeLegitimateGrant(){
+  String key=com.example.ems.network.EntryIsolation.class.getName()+".nativeEntry";
+  var http=new com.example.ems.network.Rc2NetworkPolicy.Entry("boot:g:HTTP","EMS121RC2_SERVER_COMPAT_HTTP",false,true);
+  var tls=new com.example.ems.network.Rc2NetworkPolicy.Entry("boot:g:TLS","EMS121RC2_SERVER_COMPAT_TLS",true,false);
+  request.setAttribute(key,http);String grant=access.issue(request,"SyntheticPassword123","export","");
+  request.setAttribute(key,tls);assertThrows(org.springframework.web.server.ResponseStatusException.class,()->access.consume(request,grant,"export",""));
+  request.setAttribute(key,http);assertEquals(1L,access.consume(request,grant,"export","").id());
+  assertThrows(Exception.class,()->access.consume(request,grant,"export",""));
  }
 }

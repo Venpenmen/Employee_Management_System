@@ -7,6 +7,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
+    @org.springframework.beans.factory.annotation.Autowired private ApplicationReadiness readiness;
     private final AuthInterceptor authInterceptor;
     private final com.example.ems.web.ProfileCsrfInterceptor profileCsrf;
     public WebConfig(AuthInterceptor authInterceptor, com.example.ems.web.ProfileCsrfInterceptor profileCsrf) {
@@ -15,9 +16,10 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(readiness).order(-1).addPathPatterns("/**").excludePathPatterns("/css/**","/js/**","/error","/favicon.ico","/internal/portable/**");
         registry.addInterceptor(profileCsrf).addPathPatterns("/**").excludePathPatterns("/css/**","/js/**","/health","/error","/favicon.ico").order(1);
         registry.addInterceptor(authInterceptor).order(0)
                 .addPathPatterns("/**")
-                .excludePathPatterns("/", "/login", "/register", "/css/**", "/js/**", "/error", "/favicon.ico", "/health", "/internal/portable/**");
+                .excludePathPatterns("/", "/login", "/register", "/security/reset", "/api/security/reset", "/api/security/session-status", "/css/**", "/js/**", "/error", "/favicon.ico", "/health", "/internal/portable/**");
     }
 }

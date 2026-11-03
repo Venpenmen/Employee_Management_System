@@ -22,7 +22,7 @@ public class SessionDatabaseIT {
  static class Config {
   @Bean javax.sql.DataSource dataSource(){
    String url=System.getenv("EMS_IT_URL");
-   if(url==null||!url.matches("jdbc:mysql://127\\.0\\.0\\.1:(1650[6-9]|165[12][0-9]|16530)/ems_up_server_v120\\?.*"))throw new IllegalStateException("Unsafe test database");
+   if(url==null||!url.matches("jdbc:mysql://127\\.0\\.0\\.1:(1660[6-9]|166[12][0-9]|16630)/ems_next_server_v121\\?.*"))throw new IllegalStateException("Unsafe test database");
    return new DriverManagerDataSource(url,"ems_app",System.getenv("EMS_DB_PASSWORD"));
   }
   @Bean JdbcTemplate jdbcTemplate(javax.sql.DataSource d){return new JdbcTemplate(d);}
@@ -91,7 +91,16 @@ public class SessionDatabaseIT {
     check(sessions.validate(id,winner)==SessionService.Validity.VALID,"New login commits after protected transaction");
     bind(id,gate);
     rejects(()->tx.execute(s->{sessions.guardCurrent(id,2);throw new AssertionError("Must not execute business mutation");}),"High-risk transaction rejects superseded token before business code");
-    sessions.revoke(id,winner);check(sessions.validate(id,winner)==SessionService.Validity.EXPIRED,"Current logout removes only matching digest");
+    bind(id,gate);
+    rejects(()->tx.execute(s->{sessions.guardPersonal(id);throw new AssertionError("Personal mutation must not execute");}),"Personal write guard rejects superseded in-flight credentials");
+    String snapshotToken=sessions.issue(id,password);bind(id,snapshotToken);
+    tx.execute(s->{
+     jdbc.queryForObject("SELECT COUNT(*) FROM account_active_session",Integer.class);
+     try{executor.submit(()->sessions.issue(id,password)).get(15,TimeUnit.SECONDS);}catch(Exception e){throw new IllegalStateException(e);}
+     rejects(()->sessions.guardCurrent(id,0),"Guard rejects obsolete token even after an earlier repeatable-read snapshot");
+     s.setRollbackOnly();return null;
+    });
+    String finalToken=sessions.issue(id,password);sessions.revoke(id,finalToken);check(sessions.validate(id,finalToken)==SessionService.Validity.EXPIRED,"Current logout removes only matching digest");
     sessions.revoke(other,independent);
    }finally{executor.shutdownNow();RequestContextHolder.resetRequestAttributes();}
    System.out.println("Database session checks passed: "+count);
