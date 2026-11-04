@@ -2,7 +2,7 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <body>
 <header th:fragment="nav" class="topbar">
-  <a class="brand" href="/dashboard">EMS 员工管理系统 <small>V1.2.0</small></a>
+  <a class="brand" href="/dashboard">EMS 员工管理系统 <small>V1.2.1</small></a>
   <nav id="main-nav" class="main-nav" aria-label="主导航">
     <a class="nav-link" href="/dashboard">首页</a>
     <a class="nav-link" href="/employees">员工</a>
@@ -41,10 +41,12 @@
     <div class="nav-menu nav-menu-right">
       <a href="/profile">个人资料</a>
       <a href="/password">修改密码</a>
+      <a href="/security">账号安全与通知</a>
       <div class="nav-menu-divider"></div>
       <form action="/logout" method="post"><input type="hidden" name="_csrf" th:value="${profileCsrf}"><button class="nav-logout" type="submit">退出登录</button></form>
     </div>
   </div>
+  <script src="/js/security-events.js" defer></script>
   <script>
     (() => {
       const header = document.currentScript.closest('.topbar');
