@@ -24,7 +24,7 @@ class BackupCryptoTest {
   assertThrows(IllegalArgumentException.class,()->Snapshot.inspect(zip,dir.resolve("staging")));assertFalse(Files.exists(dir.resolve("escape")));
  }
  @Test void unsafeDatabaseTargetsRejected(){
-  for(String s:List.of("jdbc:mysql://127.0.0.1:3306/ems_db","jdbc:mysql://127.0.0.1:15406/ems_server_v121","jdbc:mysql://192.168.1.1:16506/ems_up_server_v120"))assertThrows(IllegalArgumentException.class,()->Schema.safeUrl(s));
-  assertDoesNotThrow(()->Schema.safeUrl("jdbc:mysql://127.0.0.1:16506/ems_up_server_v120_g123456abcdef?useSSL=false"));
+  for(String s:List.of("jdbc:mysql://127.0.0.1:3306/ems_db","jdbc:mysql://127.0.0.1:15406/ems_server_v121","jdbc:mysql://192.168.1.1:16606/ems_next_server_v121"))assertThrows(IllegalArgumentException.class,()->Schema.safeUrl(s));
+  assertDoesNotThrow(()->Schema.safeUrl("jdbc:mysql://127.0.0.1:16606/ems_next_server_v121_g123456abcdef?useSSL=false"));
  }
 }

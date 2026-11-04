@@ -4,13 +4,21 @@ import jakarta.servlet.http.*;import org.springframework.stereotype.Service;impo
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;import org.springframework.web.server.ResponseStatusException;import org.springframework.http.HttpStatus;
 import java.util.*;import java.util.concurrent.*;
 @Service public class DatabaseAccess {
- record Grant(long user,String token,String action,String object,long expires){}
+ record Grant(long user,String token,String action,String object,long expires,String entry){}
  private final Map<String,Grant> grants=new ConcurrentHashMap<>();private final Map<Long,long[]> attempts=new ConcurrentHashMap<>();
  private final SessionService sessions;private final AuthService auth;private final JdbcTemplate jdbc;private final TransactionTemplate tx;
  public DatabaseAccess(SessionService s,AuthService a,JdbcTemplate j,org.springframework.transaction.PlatformTransactionManager tm){sessions=s;auth=a;jdbc=j;tx=new TransactionTemplate(tm);}
+ private final boolean testCompatibilityMode = com.example.ems.config.IsolatedFixture.insecureCompatibilityAllowed();
+ static String observedHash(HttpServletRequest request){
+  Object id=request.getAttribute("ems.auth.observedUserId"),token=request.getAttribute("ems.auth.observedToken");var session=request.getSession(false);
+  if(!(id instanceof Long)||!(token instanceof String value)||session==null)throw new SessionService.SessionExpired();
+  synchronized(session){try{Object stored=session.getAttribute("user");if(!(stored instanceof SessionUser user)||!user.id().equals(id)||!Objects.equals(value,SessionService.token(session)))throw new SessionService.SessionExpired();}catch(IllegalStateException expired){throw new SessionService.SessionExpired();}}
+  return SessionService.digest(value);
+ }
  public SessionUser user(HttpServletRequest req){
-  String remote=req.getRemoteAddr();if(!req.isSecure()&&!Set.of("127.0.0.1","::1","0:0:0:0:0:0:0:1").contains(remote))throw new ResponseStatusException(HttpStatus.FORBIDDEN,"数据库管理仅允许本机或HTTPS");
-  if(!req.isSecure()&&(req.getHeader("Forwarded")!=null||req.getHeader("X-Forwarded-For")!=null||req.getHeader("X-Forwarded-Proto")!=null||!Set.of("localhost","127.0.0.1","::1","[::1]").contains(req.getServerName())))throw new ResponseStatusException(HttpStatus.FORBIDDEN,"代理访问数据库管理必须使用可信HTTPS");
+  boolean explicitTest=com.example.ems.network.EntryIsolation.testHttp(req);
+  String remote=req.getRemoteAddr();if(!testCompatibilityMode&&!explicitTest&&!req.isSecure()&&!Set.of("127.0.0.1","::1","0:0:0:0:0:0:0:1").contains(remote))throw new ResponseStatusException(HttpStatus.FORBIDDEN,"数据库管理仅允许本机或HTTPS");
+  if(!testCompatibilityMode&&!explicitTest&&!req.isSecure()&&(req.getHeader("Forwarded")!=null||req.getHeader("X-Forwarded-For")!=null||req.getHeader("X-Forwarded-Proto")!=null||req.getHeader("X-Forwarded-Host")!=null||req.getHeader("X-Real-IP")!=null||!Set.of("localhost","127.0.0.1","::1","[::1]").contains(req.getServerName())))throw new ResponseStatusException(HttpStatus.FORBIDDEN,"代理访问数据库管理必须使用可信HTTPS");
   var session=req.getSession(false);Object value=session==null?null:session.getAttribute("user");
   if(!(value instanceof SessionUser u)||!u.isExecutive())throw new ResponseStatusException(HttpStatus.FORBIDDEN,"只有高层可管理数据库");
   tx.executeWithoutResult(x->sessions.guardCurrent(u.id(),2));return u;
@@ -25,11 +33,11 @@ import java.util.*;import java.util.concurrent.*;
    catch(RuntimeException e){failure[0]++;throw e;}
   }
   grants.entrySet().removeIf(e->e.getValue().expires<now);
-  String id=UUID.randomUUID().toString();grants.put(id,new Grant(u.id(),SessionService.digest(SessionService.token(req.getSession(false))),action,object==null?"":object,now+120000));return id;
+  String id=UUID.randomUUID().toString();grants.put(id,new Grant(u.id(),observedHash(req),action,object==null?"":object,now+120000,com.example.ems.network.EntryIsolation.realm(req)));return id;
  }
  public SessionUser consume(HttpServletRequest req,String id,String action,String object){
-  var u=user(req);Grant g=grants.remove(id);
-  if(g==null||g.user!=u.id()||g.expires<System.currentTimeMillis()||!g.action.equals(action)||!g.object.equals(object==null?"":object)||!g.token.equals(SessionService.digest(SessionService.token(req.getSession(false)))))throw new ResponseStatusException(HttpStatus.FORBIDDEN,"操作授权已失效，请重新验证");
+  var u=user(req);Grant g=grants.get(id);
+  if(g==null||g.user!=u.id()||g.expires<System.currentTimeMillis()||!g.action.equals(action)||!g.object.equals(object==null?"":object)||!g.token.equals(observedHash(req))||!g.entry.equals(com.example.ems.network.EntryIsolation.realm(req))||!grants.remove(id,g))throw new ResponseStatusException(HttpStatus.FORBIDDEN,"操作授权已失效，请重新验证");
   return u;
  }
 }

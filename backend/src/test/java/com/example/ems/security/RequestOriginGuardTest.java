@@ -1,0 +1,14 @@
+package com.example.ems.security;
+import org.junit.jupiter.api.Test;
+import org.springframework.mock.env.MockEnvironment;
+import org.springframework.mock.web.MockHttpServletRequest;
+import static org.junit.jupiter.api.Assertions.*;
+class RequestOriginGuardTest {
+ MockEnvironment local(){return new MockEnvironment().withProperty("server.port","8483").withProperty("server.address","127.0.0.1");}
+ MockHttpServletRequest request(String method,String host){var request=new MockHttpServletRequest(method,"/api/protected");request.addHeader("Host",host);return request;}
+ @Test void localHostAndNativeOriginAreRequired(){var guard=new RequestOriginGuard(local());var request=request("POST","127.0.0.1:8483");assertTrue(guard.permits(request));request.addHeader("Origin","http://127.0.0.1:8483");assertTrue(guard.permits(request));request.removeHeader("Origin");request.addHeader("Origin","https://evil.invalid");assertFalse(guard.permits(request));assertFalse(guard.permits(request("GET","evil.invalid:8483")));}
+ @Test void forwardedHeadersCannotMakeHttpSecureOrChangeHost(){var guard=new RequestOriginGuard(local());var request=request("POST","public.invalid");request.addHeader("X-Forwarded-Proto","https");request.addHeader("X-Forwarded-Host","localhost:8483");request.addHeader("Forwarded","proto=https;host=localhost:8483");assertFalse(guard.permits(request));}
+ @Test void proxyRequiresNativeTlsAndExplicitPublicOrigin(){var env=local().withProperty("EMS_NETWORK_MODE","proxy");assertThrows(IllegalStateException.class,()->new RequestOriginGuard(env));env.withProperty("EMS_PUBLIC_ORIGIN","https://public.invalid");assertThrows(IllegalStateException.class,()->new RequestOriginGuard(env));env.withProperty("server.ssl.enabled","true");var guard=new RequestOriginGuard(env);var request=request("POST","public.invalid:443");request.setSecure(true);request.addHeader("Origin","https://public.invalid");assertTrue(guard.permits(request));request.setSecure(false);assertFalse(guard.permits(request));}
+ @Test void malformedCrossSiteAndDuplicateHostsFailClosed(){var guard=new RequestOriginGuard(local());var request=request("POST","127.0.0.1:8483");request.addHeader("Sec-Fetch-Site","cross-site");assertFalse(guard.permits(request));request.removeHeader("Sec-Fetch-Site");request.addHeader("Origin","null");assertFalse(guard.permits(request));request.removeHeader("Origin");request.addHeader("Host","localhost:8483");assertFalse(guard.permits(request));}
+ @Test void refererFallbackChecksOriginWithoutTreatingPathAsConfiguration(){var guard=new RequestOriginGuard(local());var request=request("POST","localhost:8483");request.addHeader("Referer","http://localhost:8483/security?page=2");assertTrue(guard.permits(request));request.removeHeader("Referer");request.addHeader("Referer","http://evil.invalid/security");assertFalse(guard.permits(request));assertThrows(IllegalArgumentException.class,()->RequestOriginGuard.origin("https://public.invalid/path",false));}
+}
