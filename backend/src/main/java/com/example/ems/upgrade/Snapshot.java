@@ -17,7 +17,7 @@ public final class Snapshot {
   Schema.known(c);Schema.relations(c);boolean auto=c.getAutoCommit();
   if(auto){c.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);c.setAutoCommit(false);}
   else if(c.getTransactionIsolation()!=Connection.TRANSACTION_REPEATABLE_READ)throw new IllegalArgumentException("Snapshot transaction must use repeatable read");
-  Map<String,Object> manifest=new LinkedHashMap<>(),tables=new LinkedHashMap<>();Exception primary=null;
+  Map<String,Object> manifest=new LinkedHashMap<>(),tables=new LinkedHashMap<>(),attachmentManifest=new LinkedHashMap<>();Exception primary=null;
   try(var zip=new ZipOutputStream(Files.newOutputStream(out,StandardOpenOption.CREATE_NEW))){
    for(String table:Schema.TABLES){if(!Schema.names(c).contains(table))continue;
     Map<String,String> columns=Schema.columns(c,table);String order=columns.containsKey("id")?"id":columns.containsKey("employee_id")?"employee_id":columns.keySet().iterator().next();
@@ -44,26 +44,101 @@ public final class Snapshot {
     try(var status=c.prepareStatement("SELECT AUTO_INCREMENT FROM information_schema.tables WHERE table_schema=? AND table_name=?")){status.setString(1,c.getCatalog());status.setString(2,table);try(var row=status.executeQuery()){if(row.next()){Object next=row.getObject(1);description.put("autoIncrement",next==null?null:next.toString());}}}
     description.put("structure",structure);tables.put(table,description);
    }
+   if(Schema.names(c).contains("comm_attachment")){
+    Path attachmentRoot=attachmentStorageRoot().resolve("objects");
+    try(var statement=c.prepareStatement("SELECT id,storage_key,sha256,byte_size FROM comm_attachment WHERE attachment_status=1 ORDER BY id")){
+     try(var rows=statement.executeQuery()){
+      while(rows.next()){
+       String key=rows.getString("storage_key"),hash=rows.getString("sha256");long bytes=rows.getLong("byte_size");
+       if(key==null||!key.matches("[a-f0-9]{64}")||hash==null||!hash.matches("[a-f0-9]{64}"))throw new IllegalArgumentException("Invalid attachment metadata");
+       Path file=attachmentRoot.resolve(key).normalize();if(!file.startsWith(attachmentRoot)||!Files.isRegularFile(file))throw new IllegalArgumentException("Attachment file is unavailable");
+       if(Files.size(file)!=bytes||!BackupCrypto.sha256(file).equals(hash))throw new IllegalArgumentException("Attachment file integrity check failed");
+       String entry="attachments/"+rows.getLong("id");zip.putNextEntry(new ZipEntry(entry));Files.copy(file,zip);zip.closeEntry();
+       attachmentManifest.put(String.valueOf(rows.getLong("id")),Map.of("storageKey",key,"bytes",bytes,"sha256",hash,"path",entry));
+      }
+     }
+    }
+   }
    boolean versioned=Schema.names(c).contains("flyway_schema_history");int schemaVersion=sourceVersion(c);
-   manifest.put("format",1);manifest.put("programVersion",versioned?(schemaVersion==2?"1.2.0":"1.2.1"):System.getenv().getOrDefault("EMS_SOURCE_VERSION","legacy-unversioned"));manifest.put("buildId",versioned?(schemaVersion==2?"v1.2.0-rc1":"v1.2.1-complete-rc1"):"legacy-unversioned");manifest.put("schemaVersion",schemaVersion);manifest.put("sourceKind",versioned?"flyway":"legacy-unversioned");manifest.put("tables",tables);
+   manifest.put("format",1);manifest.put("programVersion",versioned?(schemaVersion==2?"1.2.0":schemaVersion==3?"1.2.1":"1.2.2"):System.getenv().getOrDefault("EMS_SOURCE_VERSION","legacy-unversioned"));manifest.put("buildId",versioned?(schemaVersion==2?"v1.2.0-rc1":schemaVersion==3?"v1.2.1-complete-rc1":"v1.2.2-local"):"legacy-unversioned");manifest.put("schemaVersion",schemaVersion);manifest.put("sourceKind",versioned?"flyway":"legacy-unversioned");manifest.put("tables",tables);manifest.put("attachments",attachmentManifest);
    zip.putNextEntry(new ZipEntry("manifest.json"));JSON.writeValue(new KeepOpen(zip),manifest);zip.closeEntry();boundary.capture();c.commit();return manifest;
   }catch(Exception e){primary=e;try{c.rollback();}catch(Exception rollback){e.addSuppressed(rollback);}MaintenanceMain.cleanup(out,null,e);throw e;}finally{try{if(!c.isClosed())c.setAutoCommit(auto);}catch(Exception cleanup){if(primary!=null)primary.addSuppressed(cleanup);else throw cleanup;}}
  }
  static void requireSpace(long available,long declared){if(available<declared*2+256L*1024*1024)throw new IllegalArgumentException("Insufficient free space for isolated restore");}
  public static JsonNode inspect(Path zipPath,Path staging)throws Exception{
   long declared=0;int files=0;
-  try(var central=new ZipFile(zipPath.toFile())){var all=central.entries();while(all.hasMoreElements()){var e=all.nextElement();if(++files>Schema.TABLES.size()+1||e.getSize()<0)throw new IllegalArgumentException("Invalid backup size metadata");declared+=e.getSize();if(declared>4L*1024*1024*1024)throw new IllegalArgumentException("Backup exceeds parse limits");}}
+  try(var central=new ZipFile(zipPath.toFile())){var all=central.entries();while(all.hasMoreElements()){var e=all.nextElement();if(++files>Schema.TABLES.size()+10001||e.getSize()<0)throw new IllegalArgumentException("Invalid backup size metadata");declared+=e.getSize();if(declared>4L*1024*1024*1024)throw new IllegalArgumentException("Backup exceeds parse limits");}}
   requireSpace(Files.getFileStore(staging.getParent()).getUsableSpace(),declared);
   Files.createDirectory(staging);Set<String> entries=new HashSet<>();long total=0;
   try(var zip=new ZipInputStream(Files.newInputStream(zipPath))){ZipEntry entry;while((entry=zip.getNextEntry())!=null){
-   String name=entry.getName();if(!entries.add(name)||!(name.equals("manifest.json")||name.matches("tables/[a-z_]+\\.json"))||entry.isDirectory())throw new IllegalArgumentException("Unsafe backup entry");
+   String name=entry.getName();if(!entries.add(name)||!(name.equals("manifest.json")||name.matches("tables/[a-z_]+\\.json")||name.matches("attachments/[0-9]+"))||entry.isDirectory())throw new IllegalArgumentException("Unsafe backup entry");
    if(name.startsWith("tables/")&&!Schema.TABLES.contains(name.substring(7,name.length()-5)))throw new IllegalArgumentException("Unexpected business table");
    Path dest=staging.resolve(name);Files.createDirectories(dest.getParent());long bytes=0;try(var out=Files.newOutputStream(dest,StandardOpenOption.CREATE_NEW)){byte[] b=new byte[65536];int n;while((n=zip.read(b))!=-1){bytes+=n;total+=n;if(total>4L*1024*1024*1024||(name.equals("manifest.json")&&bytes>1048576))throw new IllegalArgumentException("Backup exceeds parse limits");out.write(b,0,n);}}
   }}
-  JsonNode m=JSON.readTree(staging.resolve("manifest.json").toFile());if(m.path("format").asInt()!=1||m.path("schemaVersion").asInt()<1||m.path("schemaVersion").asInt()>3)throw new IllegalArgumentException("Incompatible backup version");
+  JsonNode m=JSON.readTree(staging.resolve("manifest.json").toFile());if(m.path("format").asInt()!=1||m.path("schemaVersion").asInt()<1||m.path("schemaVersion").asInt()>6)throw new IllegalArgumentException("Incompatible backup version");
   var fields=m.path("tables").fields();Set<String> present=new HashSet<>();
   while(fields.hasNext()){var e=fields.next();String table=e.getKey();if(!Schema.TABLES.contains(table))throw new IllegalArgumentException("Unexpected table");present.add(table);Path file=staging.resolve("tables/"+table+".json");var digest=MessageDigest.getInstance("SHA-256");try(var in=Files.newInputStream(file)){byte[] b=new byte[65536];int n;while((n=in.read(b))!=-1)digest.update(b,0,n);}if(!HexFormat.of().formatHex(digest.digest()).equals(e.getValue().path("sha256").asText()))throw new IllegalArgumentException("Table hash mismatch");}
-  if(!present.containsAll(Schema.TABLES.subList(0,12))||entries.size()!=present.size()+1||(m.path("schemaVersion").asInt()==3&&!present.containsAll(Schema.TABLES)))throw new IllegalArgumentException("Incomplete business backup");return m;
+  List<String> required=m.path("schemaVersion").asInt()>=6?Schema.TABLES:m.path("schemaVersion").asInt()==5?Schema.TABLES.subList(0,35):m.path("schemaVersion").asInt()>=4?Schema.TABLES.subList(0,34):m.path("schemaVersion").asInt()>=3?Schema.TABLES.subList(0,22):Schema.TABLES.subList(0,12);
+  Iterator<Map.Entry<String,JsonNode>> attachmentFields=m.path("attachments").isObject()?m.path("attachments").fields():Collections.emptyIterator();int attachmentEntries=0;
+  while(attachmentFields.hasNext()){
+   var item=attachmentFields.next();String id=item.getKey(),path="attachments/"+id;var descriptor=item.getValue();
+   if(!id.matches("[0-9]{1,20}")||descriptor.path("storageKey").asText("").matches("[a-f0-9]{64}")==false
+       ||descriptor.path("sha256").asText("").matches("[a-f0-9]{64}")==false
+       ||descriptor.path("bytes").asLong(-1)<0||!path.equals(descriptor.path("path").asText())
+       ||!entries.contains(path))throw new IllegalArgumentException("Invalid attachment manifest");
+   Path file=staging.resolve(path);
+   if(Files.size(file)!=descriptor.path("bytes").asLong()||!BackupCrypto.sha256(file).equals(descriptor.path("sha256").asText()))
+    throw new IllegalArgumentException("Attachment hash mismatch");
+   attachmentEntries++;
+  }
+  if(!present.containsAll(required)||entries.size()!=present.size()+attachmentEntries+1)throw new IllegalArgumentException("Incomplete business backup");return m;
+ }
+ public static Path attachmentStorageRoot(){
+  String configured=System.getenv("EMS_COMMUNICATION_STORAGE");
+  Path base;
+  if(configured!=null&&!configured.isBlank())base=Path.of(configured).toAbsolutePath().normalize();
+  else{
+   String control=System.getenv("EMS_CONTROL_DIR");
+   Path root=control!=null&&!control.isBlank()?Path.of(control):Path.of(System.getProperty("user.dir"),"data");
+   base=root.resolve("communications").toAbsolutePath().normalize();
+  }
+  String generation="initial";
+  Path pointer=base.resolve("active-generation");
+  try{
+   if(Files.isRegularFile(pointer)){
+    String value=Files.readString(pointer).trim();
+    if(!value.matches("[a-z0-9_-]{1,80}"))throw new IllegalArgumentException("Invalid attachment generation");
+    generation=value;
+   }
+  }catch(java.io.IOException error){throw new IllegalStateException("Cannot read attachment generation",error);}
+  return base.resolve("generations").resolve(generation).normalize();
+ }
+ public static void stageAttachments(JsonNode manifest,Path staging,Path destination)throws Exception{
+  if(Files.exists(destination))throw new java.nio.file.FileAlreadyExistsException(destination.toString());
+  Files.createDirectories(destination);
+  Path objects=destination.resolve("objects");Files.createDirectory(objects);
+  Map<String,Object> index=new LinkedHashMap<>();
+  Iterator<Map.Entry<String,JsonNode>> fields=manifest.path("attachments").isObject()?manifest.path("attachments").fields():Collections.emptyIterator();
+  while(fields.hasNext()){
+   var entry=fields.next();var descriptor=entry.getValue();String key=descriptor.path("storageKey").asText();
+   Path source=staging.resolve(descriptor.path("path").asText()),target=objects.resolve(key);
+   Files.copy(source,target,StandardCopyOption.COPY_ATTRIBUTES);
+   if(Files.size(target)!=descriptor.path("bytes").asLong()||!BackupCrypto.sha256(target).equals(descriptor.path("sha256").asText()))
+    throw new IllegalArgumentException("Staged attachment verification failed");
+   index.put(entry.getKey(),Map.of("storageKey",key,"bytes",descriptor.path("bytes").asLong(),"sha256",descriptor.path("sha256").asText()));
+  }
+  JSON.writeValue(destination.resolve("manifest.json").toFile(),Map.of("format",1,"attachments",index));
+ }
+ static void verifyAttachmentReferences(Connection c,JsonNode manifest)throws SQLException{
+  if(!Schema.names(c).contains("comm_attachment"))return;
+  try(var statement=c.createStatement();var rows=statement.executeQuery("SELECT id,storage_key,sha256 FROM comm_attachment WHERE attachment_status=1")){
+   while(rows.next()){
+    var descriptor=manifest.path("attachments").path(String.valueOf(rows.getLong("id")));
+    if(!descriptor.isObject()||!rows.getString("storage_key").equals(descriptor.path("storageKey").asText())
+        ||!rows.getString("sha256").equals(descriptor.path("sha256").asText()))
+     throw new IllegalArgumentException("Restored attachment reference is missing or mismatched");
+   }
+  }
  }
  public static Map<String,Object> restore(Connection c,JsonNode m,Path staging)throws Exception{
   var names=Schema.names(c);if(!names.contains("flyway_schema_history"))throw new IllegalArgumentException("Target must be migrated first");
@@ -109,7 +184,10 @@ public final class Snapshot {
     if(!columns.contains("create_time")&&allowed.containsKey("create_time")&&allowed.containsKey("update_time"))st.executeUpdate("UPDATE "+q(table)+" SET create_time=update_time,update_time=update_time");
    }st.executeUpdate("UPDATE account_security SET temporary_state=IF(temporary_state='NORMAL','NORMAL','REISSUE'),temporary_expires_at=NULL,temporary_errors=0,anomaly_epoch=NOW(6),warning_sent=0");
    st.executeUpdate("UPDATE password_change_request SET status='EXPIRED',active_employee_id=NULL WHERE status='APPROVED'");
-   st.execute("SET FOREIGN_KEY_CHECKS=1");JobDiagnostics.phase("relationships");Schema.relations(c);
+   if(m.path("schemaVersion").asInt()<6){
+    st.executeUpdate("INSERT INTO dictionary_item(dict_type,item_value,item_label,sort_order,status) SELECT '__attendance_internal','workflow_start',CAST(UNIX_TIMESTAMP(installed_on) AS CHAR),0,0 FROM flyway_schema_history WHERE version='6' AND success=1 ON DUPLICATE KEY UPDATE item_label=item_label");
+   }
+   st.execute("SET FOREIGN_KEY_CHECKS=1");JobDiagnostics.phase("relationships");Schema.relations(c);verifyAttachmentReferences(c,m);
    try(var rs=st.executeQuery("SELECT COUNT(*) FROM employee e JOIN user_account a ON a.employee_id=e.id WHERE e.user_type=2 AND e.employment_status=1 AND a.account_status=1")){rs.next();if(rs.getInt(1)==0)throw new IllegalArgumentException("备份必须包含有效高层账号");}
    c.commit();
   }catch(Exception e){primary=e;try{c.rollback();}catch(Exception rollback){e.addSuppressed(rollback);}throw e;}finally{try{try(var reset=c.createStatement()){reset.execute("SET FOREIGN_KEY_CHECKS=1");}c.setAutoCommit(true);}catch(Exception cleanup){if(primary!=null)primary.addSuppressed(cleanup);else throw cleanup;}}

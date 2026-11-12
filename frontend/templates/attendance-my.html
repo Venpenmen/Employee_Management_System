@@ -1,4 +1,61 @@
-<!DOCTYPE html><html lang="zh-CN" xmlns:th="http://www.thymeleaf.org"><head><meta charset="UTF-8"><title>我的考勤</title><link rel="stylesheet" href="/css/app.css"></head><body><header th:replace="~{fragments :: nav}"></header><main class="container"><div th:replace="~{fragments :: messages}"></div><div class="page-head"><div><h1>我的考勤</h1><p th:text="${'当前规则：'+rule.rule_name+'，上班 '+@viewFormats.time(rule.work_start_time)+'，下班 '+@viewFormats.time(rule.work_end_time)}"></p></div></div>
-<section class="attendance-clock"><div><span>今日状态</span><strong th:text="${#maps.isEmpty(today)?'尚未打卡':(today.check_out_time!=null?'今日打卡已完成':'已上班打卡')}"></strong><p th:if="${!#maps.isEmpty(today)}" th:text="${'上班：'+(today.check_in_time==null?'-':@viewFormats.dateTime(today.check_in_time))+'　下班：'+(today.check_out_time==null?'-':@viewFormats.dateTime(today.check_out_time))}"></p></div><div class="clock-actions"><form method="post" action="/attendance/check-in"><input type="hidden" name="_csrf" th:value="${profileCsrf}"><button class="primary big-button" th:disabled="${!#maps.isEmpty(today)}">上班打卡</button></form><form method="post" action="/attendance/check-out"><input type="hidden" name="_csrf" th:value="${profileCsrf}"><button class="big-button" th:disabled="${#maps.isEmpty(today) or today.check_out_time!=null}">下班打卡</button></form></div></section>
-<section class="stats"><div class="stat"><b th:text="${summary.normal_days}">0</b><span>正常</span></div><div class="stat"><b th:text="${summary.late_count}">0</b><span>迟到</span></div><div class="stat"><b th:text="${summary.early_count}">0</b><span>早退</span></div><div class="stat"><b th:text="${summary.missing_count}">0</b><span>缺卡</span></div><div class="stat"><b th:text="${summary.leave_days}">0</b><span>请假天数</span></div></section>
-<section class="panel"><div class="section-head"><h2>个人考勤明细</h2><form class="inline" method="get"><input type="month" name="month" th:value="${month}"><button>查询</button></form></div><div class="table-wrap"><table><thead><tr><th>日期</th><th>上班</th><th>下班</th><th>状态</th><th>迟到</th><th>早退</th><th>修正说明</th></tr></thead><tbody><tr th:each="r:${records}"><td th:text="${@viewFormats.date(r.attendance_date)}"></td><td th:text="${@viewFormats.dateTime(r.check_in_time)?:'-'}"></td><td th:text="${@viewFormats.dateTime(r.check_out_time)?:'-'}"></td><td><span class="tag" th:text="${r.attendance_status==0?'未完成':(r.attendance_status==1?'正常':(r.attendance_status==2?'迟到':(r.attendance_status==3?'早退':(r.attendance_status==4?'迟到且早退':(r.attendance_status==5?'缺卡':(r.attendance_status==6?'请假':(r.attendance_status==7?'旷工':'已修正')))))))}"></span></td><td th:text="${r.late_minutes+' 分钟'}"></td><td th:text="${r.early_leave_minutes+' 分钟'}"></td><td th:text="${r.correction_reason?:'-'}"></td></tr><tr th:if="${#lists.isEmpty(records)}"><td colspan="7" class="empty">本月暂无考勤记录</td></tr></tbody></table></div></section></main></body></html>
+<!DOCTYPE html><html lang="zh-CN" xmlns:th="http://www.thymeleaf.org"><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta charset="UTF-8"><title>我的考勤</title><link rel="stylesheet" href="/css/app.css?v=attendance-layout-20261109"></head><body><header th:replace="~{fragments :: nav}"></header><main class="container"><div th:replace="~{fragments :: messages}"></div><div class="page-head"><div><h1>我的考勤</h1><p th:text="${'当前规则：上班 '+@viewFormats.time(rule.work_start_time)+'，下班 '+@viewFormats.time(rule.work_end_time)}"></p></div></div>
+<section class="attendance-clock attendance-workspace">
+  <div class="attendance-overview">
+    <h2>今日考勤</h2>
+    <p class="attendance-rule-time" th:text="|上班 ${@viewFormats.time(rule.work_start_time)} · 下班 ${@viewFormats.time(rule.work_end_time)}|"></p>
+    <div class="attendance-window-list">
+      <p th:text="|签到窗口：${rule.earliest_in}–${rule.last_in}|"></p>
+      <p th:text="|签退窗口：${rule.first_out}–${rule.latest_out}|"></p>
+    </div>
+    <div class="attendance-record-times">
+      <p th:text="|已签到：${@viewFormats.dateTime(today['check_in_time'])?:'—'}|"></p>
+      <p th:text="|已签退：${@viewFormats.dateTime(today['check_out_time'])?:'—'}|"></p>
+    </div>
+  </div>
+  <div class="clock-actions attendance-action-grid">
+    <form class="attendance-action-panel" method="post" action="/attendance/check-in">
+      <input type="hidden" name="_csrf" th:value="${profileCsrf}">
+      <h3 th:text="${options.checkIn()=='EXCEPTION'?'异常签到':options.checkIn()=='WARNING'?'迟到签到':options.checkIn()=='CLOSED'?'上班签到':'正常签到'}">上班签到</h3>
+      <p class="attendance-action-hint" th:if="${options.checkIn()=='WARNING'}">已超过上班时间，将按实际时间记录迟到。</p>
+      <p class="attendance-action-hint" th:if="${options.checkIn()=='EXCEPTION'}">超出正常签到宽限时间，请填写原因并提交审核。</p>
+      <p class="attendance-action-hint" th:if="${options.checkIn()=='CLOSED'}">当前不可签到，可能不在签到窗口、已签到或无需签到。</p>
+      <label th:if="${options.checkIn()=='EXCEPTION'}">异常签到原因（必填）
+        <textarea name="reason" required maxlength="500" rows="3" placeholder="请说明异常签到原因"></textarea>
+      </label>
+      <button class="primary big-button" th:disabled="${options.checkIn()=='CLOSED'}"
+              th:text="${options.checkIn()=='EXCEPTION'?'提交异常签到':options.checkIn()=='WARNING'?'确认迟到签到':options.checkIn()=='CLOSED'?'不可签到':'立即签到'}">立即签到</button>
+    </form>
+    <form class="attendance-action-panel" method="post" action="/attendance/check-out"
+          th:attr="data-missing-check-in=${options.missingCheckIn()}">
+      <input type="hidden" name="_csrf" th:value="${profileCsrf}">
+      <h3 th:text="${options.checkOut()=='EXCEPTION'?'异常签退':options.checkOut()=='WARNING'?'提前签退':options.checkOut()=='CLOSED'?'下班签退':'正常签退'}">下班签退</h3>
+      <p class="attendance-action-hint" th:if="${options.checkOut()=='WARNING'}">尚未到下班时间，将按实际时间记录早退。</p>
+      <p class="attendance-action-hint" th:if="${options.checkOut()=='EXCEPTION' and !options.missingCheckIn()}">超出正常签退宽限时间，请填写原因并提交审核。</p>
+      <p class="attendance-action-hint" th:if="${options.checkOut()=='CLOSED'}">当前不可签退，可能不在签退窗口、已签退或无需签退。</p>
+      <p class="attendance-warning" role="alert" th:if="${options.missingCheckIn()}">今日尚未签到。本次签退将记录实际时间并保留缺卡状态，须填写原因提交审核。</p>
+      <label th:if="${options.checkOut()=='EXCEPTION'}">异常签退原因（必填）
+        <textarea name="reason" required maxlength="500" rows="3" placeholder="请说明异常签退原因"></textarea>
+      </label>
+      <button class="big-button" th:disabled="${options.checkOut()=='CLOSED'}"
+              th:text="${options.checkOut()=='EXCEPTION'?'提交异常签退':options.checkOut()=='WARNING'?'确认提前签退':options.checkOut()=='CLOSED'?'不可签退':'立即签退'}">立即签退</button>
+    </form>
+  </div>
+</section>
+<section class="panel" id="attendance-requests" th:unless="${#lists.isEmpty(requests)}">
+  <h2>异常打卡记录</h2>
+  <article th:each="r:${requests}">
+    <h3 th:text="|${r.direction=='IN'?'签到':'签退'} · ${@viewFormats.dateTime(r.punched_at)}|"></h3>
+    <p th:if="${r['missing_check_in']}">异常类型：缺少签到记录</p>
+    <p th:text="${r.reason}"></p>
+    <p th:text="${r.status=='PENDING'?'待核实':r.status=='REJECTED'?'已驳回':r.status=='CANCELLED'?'已取消':r.decision=='AS_NORMAL'?'按正常通过':'按原情况通过'}"></p>
+    <p th:if="${r['opinion']}" th:text="${r['opinion']}"></p>
+    <form th:if="${r['read_at']==null and (r.status=='APPROVED' or r.status=='REJECTED')}"
+          method="post" th:attr="data-auto-read=${selectedRequestId!=null and selectedRequestId==r.id}"
+          th:action="@{/attendance/requests/{id}/read(id=${r.id})}">
+      <input type="hidden" name="_csrf" th:value="${profileCsrf}">
+      <button>标记为已读</button>
+    </form>
+  </article>
+</section>
+<section class="stats"><div class="stat"><b th:text="${summary.normal_days}">0</b><span>正常</span></div><div class="stat"><b th:text="${summary.late_count}">0</b><span>迟到</span></div><div class="stat"><b th:text="${summary.early_count}">0</b><span>早退</span></div><div class="stat"><b th:text="${summary.missing_count}">0</b><span>缺卡</span></div><div class="stat"><b th:text="${summary.absent_days}">0</b><span>旷工</span></div><div class="stat"><b th:text="${summary.leave_days}">0</b><span>请假天数</span></div></section>
+<section class="panel"><div class="section-head"><h2>个人考勤明细</h2><form class="inline" method="get"><input type="month" name="month" th:value="${month}"><button>查询</button></form></div><div class="table-wrap"><table><thead><tr><th>日期</th><th>上班</th><th>下班</th><th>状态</th><th>迟到</th><th>早退</th><th>修正说明</th></tr></thead><tbody><tr th:each="r:${records}"><td th:text="${@viewFormats.date(r.attendance_date)}"></td><td th:text="${@viewFormats.dateTime(r.check_in_time)?:'-'}"></td><td th:text="${@viewFormats.dateTime(r.check_out_time)?:'-'}"></td><td><span class="tag" th:text="${r.status_label}"></span></td><td th:text="${r.late_minutes+' 分钟'}"></td><td th:text="${r.early_leave_minutes+' 分钟'}"></td><td th:text="${r.correction_reason?:'-'}"></td></tr><tr th:if="${#lists.isEmpty(records)}"><td colspan="7" class="empty">本月暂无考勤记录</td></tr></tbody></table></div></section></main><script src="/js/attendance.js?v=att-missingin-20261106" defer></script></body></html>

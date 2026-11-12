@@ -70,7 +70,7 @@ public class Rc2EntryConfiguration {
    }
    try{
     Path root=Path.of(env.getRequiredProperty("EMS_CONTROL_DIR")).toAbsolutePath().normalize();Path target=root.resolve("network-runtime.json"),part=root.resolve("network-runtime-"+UUID.randomUUID()+".partial");
-    var value=new LinkedHashMap<String,Object>();value.put("buildId","v1.2.1-complete-rc2");value.put("pid",ProcessHandle.current().pid());value.put("bootId",policy.bootId);value.put("generation",policy.generation);value.put("mode",policy.mode);value.put("edgeTls",policy.edgeTls);value.put("remoteState",status);value.put("errorId",error);value.put("localHttpPort",policy.httpPort);value.put("httpsPort",policy.httpsPort);
+    var value=new LinkedHashMap<String,Object>();value.put("buildId","v1.2.2-local");value.put("pid",ProcessHandle.current().pid());value.put("bootId",policy.bootId);value.put("generation",policy.generation);value.put("mode",policy.mode);value.put("edgeTls",policy.edgeTls);value.put("remoteState",status);value.put("errorId",error);value.put("localHttpPort",policy.httpPort);value.put("httpsPort",policy.httpsPort);
     var info=ProcessHandle.current().info();var started=info.startInstant().orElseThrow();String ticks=Long.toString(Math.addExact(621355968000000000L,Math.addExact(Math.multiplyExact(started.getEpochSecond(),10000000L),started.getNano()/100)));
     String exe=info.command().orElseThrow(),install=Path.of(env.getRequiredProperty("EMS_UPGRADE_ROOT")).toAbsolutePath().normalize().toString(),runtimeMode=env.getRequiredProperty("EMS_UPGRADE_MODE");
     value.put("startTicks",ticks);value.put("exe",exe);value.put("installRoot",install);value.put("runtimeMode",runtimeMode);

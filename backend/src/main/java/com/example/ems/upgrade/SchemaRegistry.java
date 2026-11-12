@@ -5,15 +5,15 @@ public final class SchemaRegistry {
  static final Map<String,List<Shape>> SHAPES=new HashMap<>();
  static final Map<String,Map<String,Shape>> REGISTERED=new LinkedHashMap<>();
  static {
-  try{for(String resource:List.of("/db/legacy/113.sql","/db/legacy/120.sql","/db/upgrade/V1__canonical_business_schema.sql","/db/upgrade/V2__active_sessions.sql","/db/upgrade/V3__account_security.sql")){
+  try{for(String resource:List.of("/db/legacy/113.sql","/db/legacy/120.sql","/db/upgrade/V1__canonical_business_schema.sql","/db/upgrade/V2__active_sessions.sql","/db/upgrade/V3__account_security.sql","/db/upgrade/V4__communications.sql","/db/upgrade/V5__announcement_handover.sql","/db/upgrade/V6__attendance_workflow.sql")){
    var registered=new LinkedHashMap<String,Shape>();REGISTERED.put(resource,registered);
    String sql;try(var in=SchemaRegistry.class.getResourceAsStream(resource)){sql=new String(in.readAllBytes(),StandardCharsets.UTF_8);}
    var tables=Pattern.compile("CREATE TABLE IF NOT EXISTS\\s+([a-z_]+)\\s*\\((.*?)\\)\\s*ENGINE",Pattern.DOTALL|Pattern.CASE_INSENSITIVE).matcher(sql);
    while(tables.find()){
     String name=tables.group(1),body=tables.group(2);Map<String,String> cols=new LinkedHashMap<>();Set<String> unique=new TreeSet<>(),idx=new TreeSet<>(),fk=new TreeSet<>();
-    var fields=Pattern.compile("(?:^|,)\\s*([a-z_]+)\\s+((?:BIGINT|INT|TINYINT|VARCHAR|CHAR|DECIMAL|DATETIME|DATE|TIME|TEXT)(?:\\(\\d+(?:\\s*,\\s*\\d+)?\\))?)([^,\\n]*)",Pattern.MULTILINE|Pattern.CASE_INSENSITIVE).matcher(body);
+    var fields=Pattern.compile("(?:^|,)\\s*([a-z_][a-z0-9_]*)\\s+((?:BIGINT|INT|TINYINT|VARCHAR|CHAR|DECIMAL|DATETIME|DATE|TIME|TEXT)(?:\\(\\d+(?:\\s*,\\s*\\d+)?\\))?)([^,\\n]*)",Pattern.MULTILINE|Pattern.CASE_INSENSITIVE).matcher(body);
     while(fields.find()){cols.put(fields.group(1),fields.group(2).replace(" ","").toUpperCase(Locale.ROOT));if(fields.group(3).toUpperCase(Locale.ROOT).contains("UNIQUE"))unique.add(fields.group(1));}
-    var keys=Pattern.compile("(UNIQUE\\s+)?KEY\\s+[a-z_]+\\s*\\(([^)]+)\\)",Pattern.CASE_INSENSITIVE).matcher(body);
+    var keys=Pattern.compile("(?:^|,)\\s*(UNIQUE\\s+)?KEY\\s+[a-z_]+\\s*\\(([^)]+)\\)",Pattern.MULTILINE|Pattern.CASE_INSENSITIVE).matcher(body);
     while(keys.find()){String columns=keys.group(2).replace(" ","");(keys.group(1)==null?idx:unique).add(columns);}
     var foreign=Pattern.compile("FOREIGN KEY\\s*\\(([^)]+)\\)\\s*REFERENCES\\s+([a-z_]+)\\s*\\(([^)]+)\\)",Pattern.CASE_INSENSITIVE).matcher(body);
     while(foreign.find())fk.add(foreign.group(1).trim()+"->"+foreign.group(2)+"."+foreign.group(3).trim());

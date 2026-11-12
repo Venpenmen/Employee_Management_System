@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>通讯 · EMS</title>
+  <link rel="stylesheet" href="/css/app.css">
+  <link rel="stylesheet" href="/css/communications.css?v=20261105-ui3">
+</head>
+<body data-user-id="1" th:attr="data-user-id=${currentUser.id()},data-role=${currentUser.userType()},data-department-id=${currentUser.departmentId()},data-department-name=${currentUser.departmentName()},data-management=${currentUser.isManager() or currentUser.isExecutive()}">
+<header th:replace="~{fragments :: nav}"></header>
+<main class="container comm-shell">
+  <input id="comm-csrf" type="hidden" th:value="${profileCsrf}">
+  <div class="comm-head">
+    <div class="comm-page-identity">
+      <span class="comm-brand-glyph" aria-hidden="true">✦</span>
+      <div><h1>团队通讯</h1><p class="comm-page-subtitle">私聊与群聊 · 即时沟通</p></div>
+    </div>
+    <span id="connection-state" class="comm-connection" role="status">正在建立实时连接…</span>
+  </div>
+
+  <section id="messages-workspace" class="comm-workspace">
+    <aside class="comm-sidebar panel" aria-label="会话导航">
+      <div class="comm-sidebar-head">
+        <div><span class="sidebar-overline">MESSAGES</span><h2>最近会话 <span id="conversation-total" class="conversation-total">0</span></h2></div>
+        <button id="new-group" class="small sidebar-new-group" type="button">＋ 建群</button>
+      </div>
+      <details id="directory-drawer" class="directory-drawer">
+        <summary>⌕ <span>查找同事并发起私聊</span><span class="directory-chevron" aria-hidden="true">⌄</span></summary>
+        <div class="directory-content">
+          <label class="compact-field" for="contact-search">全公司通讯录</label>
+          <input id="contact-search" type="search" placeholder="搜索姓名、工号或部门">
+          <div id="contact-results" class="contact-results" aria-live="polite"></div>
+        </div>
+      </details>
+      <div class="conversation-section-label">消息列表 <span>最近联系</span></div>
+      <div id="conversation-list" class="conversation-list" aria-live="polite"></div>
+      <p class="comm-sidebar-footnote">工作消息仅对会话成员可见</p>
+    </aside>
+
+
+    <section class="comm-main panel">
+      <div id="empty-chat" class="chat-empty-state">
+        <div class="chat-empty-art" aria-hidden="true"><span>✉</span><i>●</i></div>
+        <h2>让沟通更简单</h2>
+        <p>选择左侧会话，或在通讯录中查找同事发起聊天。</p>
+        <span>沟通从这里开始</span>
+      </div>
+
+      <div id="chat-panel" hidden>
+        <header class="chat-head">
+          <div class="chat-identity">
+            <button id="chat-back" class="mobile-back chat-header-icon" type="button" aria-label="返回会话列表">←</button>
+            <span id="chat-avatar" class="chat-header-avatar" aria-hidden="true">聊</span>
+            <div class="chat-heading"><h2 id="chat-title"></h2><p id="chat-meta" class="muted"></p></div>
+          </div>
+          <div class="chat-head-tools">
+            <button id="chat-search-toggle" class="chat-header-icon" type="button" title="查找聊天记录" aria-controls="chat-search-panel" aria-expanded="false" aria-label="展开聊天搜索">⌕</button>
+            <details id="chat-more-menu" class="chat-more-menu">
+              <summary class="chat-header-icon" title="更多会话操作" aria-label="更多会话操作">···</summary>
+              <div class="chat-more-actions">
+                <div class="chat-menu-heading">会话操作</div>
+                <button id="chat-profile" type="button" hidden>查看联系人资料</button>
+                <button id="chat-search-menu" type="button" hidden>查找聊天记录</button>
+                <button id="chat-direct-files" type="button" hidden>查看聊天文件</button>
+                <button id="chat-copy-link" type="button" hidden>复制会话链接</button>
+                <button id="chat-pin" type="button">置顶</button>
+                <button id="chat-hide" type="button">隐藏</button>
+                <button id="chat-members" type="button" hidden>查看成员</button>
+                <button id="chat-files" type="button" hidden>群文件</button>
+                <button id="chat-settings" type="button" hidden>群设置</button>
+              </div>
+            </details>
+          </div>
+        </header>
+        <div id="chat-search-panel" class="message-search filters" hidden>
+          <input id="message-keyword" type="search" placeholder="搜索聊天记录" aria-label="聊天记录关键词">
+          <input id="message-from" type="datetime-local" aria-label="开始时间">
+          <input id="message-to" type="datetime-local" aria-label="结束时间">
+          <button id="message-search-button" class="small primary" type="button">搜索</button>
+          <button id="message-clear-search" class="small" type="button">清除</button>
+        </div>
+
+        <div id="message-load-older-wrap" class="center">
+          <button id="message-load-older" class="small" type="button">加载更早消息</button>
+        </div>
+        <div id="message-list" class="message-list" aria-live="polite"></div>
+        <div id="reply-preview" class="reply-preview" hidden>
+          <span id="reply-preview-text"></span>
+          <button id="reply-cancel" type="button" aria-label="取消引用">×</button>
+        </div>
+        <form id="message-form" class="message-compose" enctype="multipart/form-data">
+          <div class="compose-tools">
+            <label class="file-button" title="添加附件"><span aria-hidden="true">＋</span> 附件<input id="message-files" name="files" type="file" multiple accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip"></label>
+            <select id="mention-ids" multiple size="3" aria-label="选择要@的成员" hidden></select>
+            <label id="mention-all-wrap" class="check" hidden><input id="mention-all" type="checkbox"> @全体成员</label>
+            <span id="selected-file-info" class="selected-file-info" aria-live="polite"></span>
+          </div>
+          <div class="compose-main">
+            <textarea id="message-text" maxlength="4000" rows="2" placeholder="发送消息…" aria-label="消息正文"></textarea>
+            <button class="primary compose-send" type="submit" aria-label="发送消息"><span>发送</span><span aria-hidden="true">↗</span></button>
+          </div>
+          <div class="compose-bottom">
+            <span id="compose-state" class="muted" role="status"></span>
+            <span class="compose-hint">Enter 发送 · Shift+Enter 换行</span>
+          </div>
+
+        </form>
+      </div>
+    </section>
+  </section>
+
+</main>
+
+<dialog id="new-group-dialog">
+  <form id="new-group-form" enctype="multipart/form-data">
+    <h2>创建普通群</h2>
+    <label>群名称<input name="title" maxlength="80" required></label>
+    <label>群简介<textarea name="description" maxlength="500" rows="3"></textarea></label>
+    <div class="group-member-field">
+      <label for="new-group-member-search">邀请成员 <span class="group-member-count">已选 0 人</span></label>
+      <input id="new-group-member-search" type="search" placeholder="搜索姓名、工号或部门" autocomplete="off">
+      <div id="new-group-members" class="group-member-options" role="group" aria-label="邀请成员（可多选）"></div>
+    </div>
+    <label>群头像<input name="avatar" type="file" accept=".png,.jpg,.jpeg,.gif,.webp"></label>
+    <div class="dialog-actions">
+      <button type="button" data-close-dialog>取消</button>
+      <button class="primary">创建</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="members-dialog">
+  <h2>群成员</h2>
+  <div id="members-list" class="member-list"></div>
+  <div class="dialog-actions"><button type="button" data-close-dialog>关闭</button></div>
+</dialog>
+
+<dialog id="group-settings-dialog">
+  <form id="group-settings-form" enctype="multipart/form-data">
+    <h2>群设置</h2>
+    <label>群名称<input id="group-title-input" name="title" maxlength="80"></label>
+    <label>群简介<textarea id="group-description-input" name="description" maxlength="500" rows="3"></textarea></label>
+    <label>更换群头像<input name="avatar" type="file" accept=".png,.jpg,.jpeg,.gif,.webp"></label>
+    <div class="group-member-field">
+      <label for="group-add-member-search">邀请成员 <span class="group-member-count">已选 0 人</span></label>
+      <input id="group-add-member-search" type="search" placeholder="搜索可邀请的成员" autocomplete="off">
+      <div id="group-add-members" class="group-member-options" role="group" aria-label="邀请成员（可多选）"></div>
+    </div>
+    <div class="dialog-actions">
+      <button id="group-leave-button" type="button" class="danger">退出群聊</button>
+      <button id="group-dissolve-button" type="button" class="danger">解散普通群</button>
+      <button type="button" data-close-dialog>取消</button>
+      <button class="primary">保存资料</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="contact-profile-dialog">
+  <h2>联系人资料</h2>
+  <div id="contact-profile-content" class="contact-profile-content"></div>
+  <div class="dialog-actions"><button type="button" data-close-dialog>关闭</button></div>
+</dialog>
+<dialog id="files-dialog">
+  <h2 id="chat-files-heading">群文件</h2>
+  <div id="group-files-list" class="file-list"></div>
+  <div class="dialog-actions"><button type="button" data-close-dialog>关闭</button></div>
+</dialog>
+
+<script src="/js/communications-common.js" defer></script>
+<script src="/js/communications.js?v=20261105-ui2" defer></script>
+</body>
+</html>

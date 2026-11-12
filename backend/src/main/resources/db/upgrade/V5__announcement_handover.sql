@@ -1,0 +1,21 @@
+CREATE TABLE IF NOT EXISTS comm_announcement_handover (
+    id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    announcement_id BIGINT NOT NULL,
+    department_id BIGINT NOT NULL,
+    from_manager_id BIGINT NOT NULL,
+    to_manager_id BIGINT NOT NULL,
+    authorized_by BIGINT NOT NULL,
+    authorized_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    reason VARCHAR(500) NOT NULL,
+    revoked_at DATETIME(6) NULL,
+    revoked_by BIGINT NULL,
+    revoke_reason VARCHAR(500) NULL,
+    KEY idx_handover_active (announcement_id,revoked_at),
+    KEY idx_handover_manager (to_manager_id,department_id,revoked_at),
+    CONSTRAINT fk_handover_ann FOREIGN KEY (announcement_id) REFERENCES comm_announcement(id),
+    CONSTRAINT fk_handover_dept FOREIGN KEY (department_id) REFERENCES department(id),
+    CONSTRAINT fk_handover_from FOREIGN KEY (from_manager_id) REFERENCES employee(id),
+    CONSTRAINT fk_handover_to FOREIGN KEY (to_manager_id) REFERENCES employee(id),
+    CONSTRAINT fk_handover_by FOREIGN KEY (authorized_by) REFERENCES employee(id),
+    CONSTRAINT fk_handover_revoke_by FOREIGN KEY (revoked_by) REFERENCES employee(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

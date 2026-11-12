@@ -15,6 +15,8 @@ import java.util.Map;
 @Service
 public class EmployeeService {
     @org.springframework.beans.factory.annotation.Autowired private SessionService sessions;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    private com.example.ems.communications.CommunicationOrganizationService communications;
     private void guard(Long id,int role){if(sessions==null)throw new IllegalStateException("Session protection is not configured");sessions.guardCurrent(id,role);}
     private final JdbcTemplate jdbc;
     private final LogService logService;
@@ -22,17 +24,59 @@ public class EmployeeService {
 
     public record Page(List<Map<String,Object>> items,long total,int page,int pageSize,int totalPages) {}
     public Page page(SessionUser user,String keyword,Long departmentId,Integer status,int requestedPage,int requestedSize){
+        return page(user, keyword, departmentId, status, user.isExecutive() ? "all" : "own", requestedPage, requestedSize);
+    }
+    public Page page(SessionUser user,String keyword,Long departmentId,Integer status,String scope,int requestedPage,int requestedSize){
+        return pageInternal(user,keyword,departmentId,status,scope,null,false,requestedPage,requestedSize);
+    }
+    public Page page(SessionUser user,String keyword,Integer status,List<Long> selectedDepartments,boolean includeUnassigned,int requestedPage,int requestedSize){
+        return pageInternal(user,keyword,null,status,"all",selectedDepartments,includeUnassigned,requestedPage,requestedSize);
+    }
+    private Page pageInternal(SessionUser user,String keyword,Long departmentId,Integer status,String scope,List<Long> selectedDepartments,boolean includeUnassigned,int requestedPage,int requestedSize){
+        if (!"own".equals(scope) && !"other".equals(scope) && !"all".equals(scope))
+            throw new IllegalArgumentException("Invalid employee department scope");
+
         int size=requestedSize==50||requestedSize==100?requestedSize:20;
         StringBuilder where=new StringBuilder(" WHERE 1=1");
         ArrayList<Object> args=new ArrayList<>();
-        if(!user.isExecutive()){where.append(" AND e.department_id=?");args.add(user.departmentId());}
+        if (selectedDepartments != null) {
+            List<Long> ids = selectedDepartments.stream().distinct().toList();
+            if (ids.size() > 100 || ids.stream().anyMatch(id -> id == null || id <= 0))
+                throw new IllegalArgumentException("Invalid selected departments");
+            if (ids.isEmpty()) {
+                where.append(includeUnassigned ? " AND e.department_id IS NULL" : " AND 1=0");
+            } else {
+                where.append(" AND (e.department_id IN (")
+                     .append(String.join(",", java.util.Collections.nCopies(ids.size(), "?")))
+                     .append(")");
+                args.addAll(ids);
+                if (includeUnassigned) where.append(" OR e.department_id IS NULL");
+                where.append(")");
+            }
+            if (!user.isExecutive()) {
+                if (user.departmentId() == null) where.append(" AND (e.department_id IS NULL OR e.employment_status=1)");
+                else { where.append(" AND (e.department_id=? OR e.employment_status=1)"); args.add(user.departmentId()); }
+            }
+        } else if ("own".equals(scope)) {
+            if (user.departmentId() == null) where.append(" AND e.department_id IS NULL");
+            else { where.append(" AND e.department_id=?"); args.add(user.departmentId()); }
+        } else if ("other".equals(scope)) {
+            if (user.departmentId() == null) where.append(" AND e.department_id IS NOT NULL");
+            else { where.append(" AND (e.department_id<>? OR e.department_id IS NULL)"); args.add(user.departmentId()); }
+            if (!user.isExecutive()) where.append(" AND e.employment_status=1");
+        } else if (!user.isExecutive() && user.departmentId()!=null) {
+            where.append(" AND (e.department_id=? OR e.employment_status=1)");
+            args.add(user.departmentId());
+        } else if (!user.isExecutive()) {
+            where.append(" AND (e.department_id IS NULL OR e.employment_status=1)");
+        }
         if(keyword!=null&&!keyword.isBlank()){where.append(" AND (e.name LIKE ? OR e.employee_no LIKE ?)");args.add("%"+keyword.trim()+"%");args.add("%"+keyword.trim()+"%");}
         if(departmentId!=null&&user.isExecutive()){where.append(" AND e.department_id=?");args.add(departmentId);}
         if(status!=null){where.append(" AND e.employment_status=?");args.add(status);}
         Long count=jdbc.queryForObject("SELECT COUNT(*) FROM employee e"+where,Long.class,args.toArray());
         long total=count==null?0:count;
         int pages=(int)Math.max(1,(total+size-1)/size),page=Math.min(Math.max(1,requestedPage),pages);
-        String columns="e.id,e.employee_no,e.name,e.birth_date,e.phone,e.user_type,e.hire_date,e.employment_status,d.department_name,p.position_name,e.department_id,e.position_id";
+        String columns="e.id,e.employee_no,e.name,e.user_type,e.hire_date,e.employment_status,d.department_name,p.position_name,e.department_id,e.position_id";
         if(user.isExecutive())columns+=",(d.base_salary+p.position_salary) basic_salary";
         args.add(size);args.add((long)(page-1)*size);
         var rows=jdbc.queryForList("SELECT "+columns+" FROM employee e LEFT JOIN department d ON d.id=e.department_id LEFT JOIN position_info p ON p.id=e.position_id"+where+" ORDER BY e.id LIMIT ? OFFSET ?",args.toArray());
@@ -75,6 +119,7 @@ public class EmployeeService {
         Long oldDept=e.get("department_id")==null?null:((Number)e.get("department_id")).longValue();Long oldPos=e.get("position_id")==null?null:((Number)e.get("position_id")).longValue();
         if(newDepartmentId.equals(oldDept))throw new IllegalArgumentException("员工已经属于该部门");
         jdbc.update("UPDATE employee SET department_id=?,position_id=NULL WHERE id=?",newDepartmentId,id);
+        if(communications!=null) communications.synchronizeEmployee(id);
         if(pending!=null&&pending>0) jdbc.update("UPDATE leave_request SET current_approver_id=? WHERE employee_id=? AND status=1",targetManager,id);
         recordChange(id,"DEPARTMENT_TRANSFER",oldDept,newDepartmentId,oldPos,null,reason,operator.id());
         logService.log(operator.id(),"DEPARTMENT_TRANSFER","EMPLOYEE",id,"调动工号 "+employeeNo+" 的部门："+reason);
@@ -104,6 +149,7 @@ public class EmployeeService {
         if(((Number)e.get("user_type")).intValue()==1)throw new IllegalArgumentException("请先更换部门经理再办理离职");
         if(((Number)e.get("user_type")).intValue()==2)throw new IllegalArgumentException("不能通过员工离职功能停用高层");
         jdbc.update("UPDATE employee SET employment_status=3,leave_date=CURDATE() WHERE id=?",id);jdbc.update("UPDATE user_account SET account_status=0 WHERE employee_id=?",id);
+        if(communications!=null) communications.handleEmployeeDeactivation(id);
         sessions.revokeLockedAccount(id);
         logService.log(operator.id(),"TERMINATE","EMPLOYEE",id,"工号 "+employeeNo+" 离职："+reason);
     }

@@ -132,3 +132,104 @@ dialog{min-width:auto;width:92%}
 
 .profile-nav{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 22px}.profile-nav a{padding:8px 14px;border-radius:8px;background:#fff;border:1px solid var(--border)}.profile-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.profile-actions form{margin:0}.profile-text{white-space:pre-wrap;overflow-wrap:anywhere}.profile-check{display:flex;align-items:center;gap:8px}.profile-check input[type=checkbox]{width:auto}section[id]{scroll-margin-top:90px}
 .pagination,.quick-links{display:flex;align-items:center;flex-wrap:wrap;gap:12px}.pagination{padding-top:18px}.field-counter{display:block;color:#64748b;text-align:right}button:disabled{cursor:wait;opacity:.65}
+
+/* v1.2.2: shared notification center and phone navigation */
+.topbar{grid-template-columns:auto minmax(0,1fr) auto auto}
+.mobile-nav-toggle{display:none;border:1px solid var(--line);background:#f5f7fc;border-radius:9px;font-size:13px;align-items:center;justify-content:center;gap:5px;padding:7px 9px;white-space:nowrap}
+.notification-center{position:relative;justify-self:end;min-width:0}
+.notification-toggle{position:relative;width:40px;height:40px;display:grid;place-items:center;border:1px solid var(--line);border-radius:11px;background:#f7f9ff;font-size:20px;padding:0}
+.notification-toggle:hover,.notification-toggle[aria-expanded=true]{background:#eaf0ff;color:var(--brand)}
+.notification-count{position:absolute;right:-5px;top:-7px;border-radius:99px;background:#d33c4c;color:#fff;min-width:19px;height:19px;padding:1px 5px;display:grid;place-items:center;font-size:10px;font-weight:700;border:2px solid #fff}
+.notification-count[hidden],.notification-panel[hidden]{display:none!important}
+.notification-panel{position:absolute;top:calc(100% + 12px);right:0;width:345px;max-width:calc(100vw - 20px);padding:12px;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 20px 50px #1720332c;z-index:100;overflow:hidden}
+.notification-panel-head{display:flex;justify-content:space-between;align-items:center;padding:4px 4px 10px}
+.notification-panel-head strong{font-size:15px}.notification-panel-head a{font-size:12px}
+.notification-items{max-height:min(55vh,400px);overflow:auto;display:grid;gap:4px}
+.notification-item{display:flex;align-items:flex-start;gap:10px;border-radius:9px;padding:10px 8px;color:var(--text);min-width:0}
+.notification-item:hover,.notification-item:focus-visible{background:#edf2ff}
+.notification-kind{border-radius:6px;background:#e5ecff;color:#3156d3;font-size:11px;flex:0 0 auto;padding:5px}
+.notification-copy{display:grid;min-width:0;flex:1;gap:4px}
+.notification-copy strong{font-size:13px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.notification-copy small{font-size:12px;color:var(--muted);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.notification-copy time{font-size:11px;color:#94a0b4}
+.notification-item-count{border-radius:99px;background:#3156d3;color:#fff;font-size:11px;padding:2px 7px}
+.notification-empty{color:var(--muted);text-align:center;font-size:13px;padding:20px 8px}
+.notification-status{margin:8px 4px 0;padding-top:8px;border-top:1px solid var(--line);font-size:11px;color:var(--muted);line-height:1.5}
+@media (min-width:851px) and (max-width:1180px){
+ .topbar{grid-template-columns:minmax(0,1fr) auto auto}
+ .notification-center{grid-column:2;grid-row:1}
+ .user-menu{grid-column:3;grid-row:1}
+}
+@media (max-width:850px){
+ .topbar{grid-template-columns:minmax(0,1fr) auto auto auto;column-gap:6px;row-gap:0;min-height:60px;padding:8px 12px}
+ .topbar .brand{grid-column:1;grid-row:1;min-width:0;font-size:clamp(13px,3.6vw,18px)}
+ .mobile-nav-toggle{display:flex;grid-column:2;grid-row:1}
+ .notification-center{grid-column:3;grid-row:1}
+ .user-menu{grid-column:4;grid-row:1}
+ .user-toggle{padding:7px 6px}
+ .user-name{max-width:70px;font-size:12px}
+ .notification-toggle{width:36px;height:36px;font-size:18px}
+ .notification-panel{position:fixed;top:60px;right:8px;left:8px;width:auto;max-width:none}
+ .topbar .main-nav{display:none;grid-column:1/-1;grid-row:2;flex-direction:column;align-items:stretch;justify-content:flex-start;flex-wrap:nowrap;width:100%;max-height:calc(100dvh - 82px);overflow:auto;margin-top:8px;padding:9px 2px 5px;border-top:1px solid var(--line)}
+ .topbar.mobile-nav-open .main-nav{display:flex}
+ .main-nav>.nav-link,.main-nav>.nav-group{width:100%}
+ .main-nav>.nav-link{padding:11px 12px}
+ .main-nav .nav-dropdown-toggle{width:100%;justify-content:space-between;padding:11px 12px}
+ .main-nav .nav-menu{position:static;top:auto;left:auto;transform:none;width:100%;min-width:0;border:0;border-radius:8px;box-shadow:none;background:#f4f6fc;padding:4px 7px;margin:2px 0 8px}
+ .main-nav .nav-menu a{white-space:normal}
+ .container{width:calc(100% - 24px);margin:15px auto 40px}
+ .page-head,.hero{gap:14px;flex-wrap:wrap}
+ .hero{padding:24px 18px}
+ .panel{padding:16px;margin:12px 0}
+ .stat{flex:1 1 140px;min-width:0}
+ .table-wrap{max-width:100%;overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
+ .table-wrap table{min-width:max-content}
+ dialog{width:min(96vw,620px);max-width:96vw;max-height:90dvh;overflow:auto;padding:18px}
+ .grid-form,.two-cols,.detail-grid{grid-template-columns:minmax(0,1fr)}
+ .payslips{grid-template-columns:minmax(0,1fr)}
+ .salary-grid{grid-template-columns:1fr}
+ .page-actions{gap:7px}
+}
+@media (max-width:430px){
+ .topbar{column-gap:3px;padding:8px 7px}
+ .mobile-nav-toggle{font-size:12px;padding:7px 6px}
+ .mobile-nav-toggle span{display:none}
+ .topbar .brand{font-size:13px}
+ .user-name{max-width:55px}
+ .notification-toggle{width:32px;height:34px}
+ .hero{padding:20px 15px}
+ .hero h1,.page-head h1{font-size:23px}
+ .stats{gap:9px}
+ .stat{padding:13px}
+ .panel{padding:13px}
+ .filters{align-items:stretch;gap:8px}
+ .filters input,.filters select{width:100%;min-width:0}
+ .filters button,.filters .button{width:100%;text-align:center}
+ .salary-actions{align-items:stretch}
+ .salary-actions input,.salary-actions select{width:100%}
+ .dialog-actions{flex-wrap:wrap}
+ .dialog-actions button{flex:1 1 120px}
+ .attachment-item{min-width:0;overflow-wrap:anywhere}
+ .page-head p{font-size:13px;line-height:1.6}
+}
+.attendance-warning{padding:10px 12px;border:1px solid var(--border,#d7a35d);border-radius:8px;background:rgba(255,179,71,.12);line-height:1.55}
+
+
+/* Attendance workspace: scoped layout, independent of generic form styles. */
+.attendance-workspace{display:grid;grid-template-columns:minmax(230px,0.85fr) minmax(0,1.5fr);align-items:start;gap:24px}
+.attendance-workspace .attendance-overview{min-width:0}
+.attendance-workspace .attendance-overview h2{margin:0 0 14px;font-size:22px;color:#fff}
+.attendance-workspace .attendance-rule-time{font-weight:700;font-size:16px;color:#fff}
+.attendance-workspace .attendance-window-list{margin:18px 0}
+.attendance-workspace .attendance-window-list p,.attendance-workspace .attendance-record-times p{margin:7px 0;line-height:1.6;overflow-wrap:anywhere}
+.attendance-workspace .attendance-action-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:stretch;width:100%;min-width:0}
+.attendance-workspace .attendance-action-panel{display:flex;flex-direction:column;gap:12px;min-width:0;padding:18px;background:#fff;color:#172033;border:1px solid #dce4f0;border-radius:12px}
+.attendance-workspace .attendance-action-panel h3{font-size:18px;margin:0;color:#1c3157}
+.attendance-workspace .attendance-action-hint{font-size:13px;line-height:1.55;color:#52647e;margin:0}
+.attendance-workspace .attendance-action-panel label{color:#344767;font-weight:600;min-width:0}
+.attendance-workspace .attendance-action-panel textarea{display:block;width:100%;max-width:100%;min-height:92px;resize:vertical;color:#172033}
+.attendance-workspace .attendance-action-panel .big-button{width:100%;margin-top:auto;min-height:48px;white-space:normal}
+.attendance-workspace .attendance-action-panel button:disabled{opacity:.55;cursor:not-allowed}
+.attendance-workspace .attendance-action-panel .attendance-warning{color:#8c4914;background:#fff6e9;border-color:#f4d2a6;font-size:13px;margin:0}
+@media(max-width:1000px){.attendance-workspace{grid-template-columns:1fr}}
+@media(max-width:620px){.attendance-workspace{padding:18px;gap:18px}.attendance-workspace .attendance-action-grid{grid-template-columns:1fr}.attendance-workspace .attendance-action-panel{padding:15px}}

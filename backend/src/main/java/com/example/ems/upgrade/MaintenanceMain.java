@@ -64,7 +64,8 @@ public final class MaintenanceMain {
     try(var c=DriverManager.getConnection(url,user,pw);var st=c.createStatement()){st.executeUpdate("CREATE DATABASE "+Snapshot.q(target)+" CHARACTER SET utf8mb4");created=true;}
     String targetUrl=url(target);JobDiagnostics.phase("migrate-target");Schema.migrate(targetUrl,user,pw);
     Map<String,Object> mapping;try(var c=DriverManager.getConnection(targetUrl,user,pw)){JobDiagnostics.phase("restore-data");mapping=Snapshot.restore(c,manifest,job.resolve("staging"));}
-    Map<String,Object> result=new LinkedHashMap<>();result.put("target",target);result.put("tables",manifest.get("tables"));result.put("state","PREVIEW_READY");result.put("programVersion",manifest.path("programVersion").asText());result.put("schemaVersion",manifest.path("schemaVersion").asInt());
+    JobDiagnostics.phase("restore-attachments");Path attachmentStage=job.resolve("attachments-generation");Snapshot.stageAttachments(manifest,job.resolve("staging"),attachmentStage);
+    Map<String,Object> result=new LinkedHashMap<>();result.put("target",target);result.put("tables",manifest.get("tables"));result.put("state","PREVIEW_READY");result.put("programVersion",manifest.path("programVersion").asText());result.put("schemaVersion",manifest.path("schemaVersion").asInt());result.put("attachmentGeneration",target);result.put("attachmentStage",attachmentStage.toString());
     result.put("mapping",mapping);Snapshot.JSON.writeValue(job.resolve("result.json").toFile(),result);
    }catch(Exception failure){
     primary=failure;

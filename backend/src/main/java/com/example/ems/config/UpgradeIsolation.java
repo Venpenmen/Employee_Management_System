@@ -22,7 +22,7 @@ public final class UpgradeIsolation implements EnvironmentPostProcessor,Ordered{
  }
  public static void verifyInstallation(ConfigurableEnvironment e,String mode,String url){
   try{
-   boolean rc2=e.getProperty("ems.rc2.enabled",Boolean.class,false);String marker=rc2?"app/version-complete-rc2.json":"app/version-complete.json",data=rc2?"data/complete-rc2/":"data/complete/",build=rc2?"v1.2.1-complete-rc2":"v1.2.1-complete-rc1";
+   boolean rc2=e.getProperty("ems.rc2.enabled",Boolean.class,false);String marker=rc2?"app/version-complete-rc2.json":"app/version-complete.json",data=rc2?"data/complete-rc2/":"data/complete/",build=rc2?"v1.2.2-local":"v1.2.1-complete-rc1";
    java.nio.file.Path root=java.nio.file.Path.of(e.getRequiredProperty("EMS_UPGRADE_ROOT")).toAbsolutePath().normalize();
    if(!IsolatedFixture.plain(root)||!root.equals(root.toRealPath())||!mode.equals(e.getRequiredProperty("EMS_UPGRADE_MODE")))throw new IllegalStateException();
    var version=com.example.ems.upgrade.Snapshot.JSON.readTree(root.resolve(marker).toFile());

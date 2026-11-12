@@ -19,7 +19,7 @@ class ExtensionConflictMatrixTest {
  ObjectNode person(String id,String role){var r=row("employee",id);r.put("employee_no","26000"+id);r.put("identity_number","SyntheticIdentity"+id);r.put("birth_date","1990-01-01");r.put("user_type",role);r.put("department_id","1");r.put("position_id","1");return r;}
  ObjectNode account(String id){var r=row("user_account",id);r.put("employee_id",id);r.put("password_hash","SyntheticHash"+id);r.put("account_status","1");r.put("failed_login_count","0");return r;}
  @BeforeEach void setup()throws Exception{
-  Schema.TABLES.forEach(t->original.put(t,Snapshot.JSON.createArrayNode()));
+  CompatibilityCatalog.profile("canonical-121").tables().keySet().forEach(t->original.put(t,Snapshot.JSON.createArrayNode()));
   add("employee",person("1","2"));add("employee",person("2","0"));add("user_account",account("1"));add("user_account",account("2"));
   for(String table:Schema.TABLES.subList(17,22)){var r=row(table,"1");r.put("employee_id",table.equals("secondary_credential")||table.equals("security_notification")?"1":"2");
    if(table.equals("account_security")){r.put("frozen","0");r.put("temporary_state","NORMAL");}
@@ -29,7 +29,7 @@ class ExtensionConflictMatrixTest {
    add(table,r);
   }
   var manifest=Snapshot.JSON.createObjectNode();manifest.put("format",1);manifest.put("schemaVersion",3);manifest.put("programVersion","1.2.1");var meta=manifest.putObject("tables");
-  Path source=work.resolve("source.zip");try(var zip=new ZipOutputStream(Files.newOutputStream(source))){for(String table:Schema.TABLES){byte[] bytes=Snapshot.JSON.writeValueAsBytes(original.get(table));CompatibilityArchive.add(zip,"tables/"+table+".json",bytes);var m=meta.putObject(table);var columns=m.putObject("columns");CompatibilityCatalog.profile("canonical-121").tables().get(table).columns().forEach((k,v)->columns.put(k,v.type().replaceFirst("\\(.*$","")));m.put("rows",original.get(table).size());m.put("sha256",BackupBundle.sha256(bytes));}CompatibilityArchive.add(zip,"manifest.json",Snapshot.JSON.writeValueAsBytes(manifest));}
+  Path source=work.resolve("source.zip");try(var zip=new ZipOutputStream(Files.newOutputStream(source))){for(String table:CompatibilityCatalog.profile("canonical-121").tables().keySet()){byte[] bytes=Snapshot.JSON.writeValueAsBytes(original.get(table));CompatibilityArchive.add(zip,"tables/"+table+".json",bytes);var m=meta.putObject(table);var columns=m.putObject("columns");CompatibilityCatalog.profile("canonical-121").tables().get(table).columns().forEach((k,v)->columns.put(k,v.type().replaceFirst("\\(.*$","")));m.put("rows",original.get(table).size());m.put("sha256",BackupBundle.sha256(bytes));}CompatibilityArchive.add(zip,"manifest.json",Snapshot.JSON.writeValueAsBytes(manifest));}
   CompatibilityArchive.project(source,work,password);extension=CompatibilityExtensions.read(work.resolve("extensions.emsbk"),work.resolve("private-extension"),password);
   baseline=Snapshot.JSON.createArrayNode();for(String table:CompatibilityArchive.BASE_TABLES){returned.put(table,original.get(table).deepCopy());for(var r:original.get(table)){var h=baseline.addObject();h.put("table",table);h.put("id",r.path("id").asText());h.put("generation",UUID.randomUUID().toString());h.put("alive",true);}}heads=baseline.deepCopy();
  }

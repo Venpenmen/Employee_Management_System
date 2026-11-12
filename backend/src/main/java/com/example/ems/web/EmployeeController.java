@@ -23,13 +23,21 @@ public class EmployeeController {
     }
 
     @GetMapping
-    public String list(@RequestParam(required=false)String keyword,@RequestParam(required=false)Long departmentId,@RequestParam(required=false)Integer status,@RequestParam(defaultValue="1")int page,@RequestParam(defaultValue="20")int pageSize,HttpSession session,Model model){
+    public String list(@RequestParam(required=false)String keyword,@RequestParam(required=false)Long departmentId,@RequestParam(required=false)Integer status,@RequestParam(required=false)String departmentFilter,@RequestParam(required=false)List<Long> selectedDepartments,@RequestParam(defaultValue="false")boolean includeUnassigned,@RequestParam(defaultValue="1")int page,@RequestParam(defaultValue="20")int pageSize,HttpSession session,Model model){
         SessionUser u=user(session);
-        var result=service.page(u,keyword,departmentId,status,page,pageSize);
+        List<Map<String,Object>> departmentOptions=departments.listDepartments();
+        List<Long> validIds=departmentOptions.stream().map(d->((Number)d.get("id")).longValue()).toList();
+        List<Long> selected=departmentFilter==null ?
+                (u.isExecutive() ? validIds : (u.departmentId()!=null && validIds.contains(u.departmentId()) ? List.of(u.departmentId()) : List.of())) :
+                (selectedDepartments==null ? List.<Long>of() : selectedDepartments.stream().distinct().filter(validIds::contains).toList());
+        boolean showUnassigned=departmentFilter==null ? (u.isExecutive() || (!u.isExecutive() && selected.isEmpty())) : includeUnassigned;
+        var result=service.page(u,keyword,status,selected,showUnassigned,page,pageSize);
+        model.addAttribute("selectedDepartmentIds",selected);
+        model.addAttribute("myDepartmentId",u.departmentId());
+        model.addAttribute("includeUnassigned",showUnassigned);
         model.addAttribute("employees",result.items());model.addAttribute("pagination",result);
-        model.addAttribute("departmentId",departmentId);model.addAttribute("status",status);
-        model.addAttribute("returnContext",new EmployeeReturn(keyword==null?"":keyword.trim(),u.isExecutive()?departmentId:null,status,result.page(),result.pageSize()));
-        List<Map<String,Object>> departmentOptions=u.isExecutive()?departments.listDepartments():departments.listDepartments().stream().filter(d->u.departmentId()!=null&&u.departmentId().equals(((Number)d.get("id")).longValue())).toList();
+        model.addAttribute("departmentId",null);model.addAttribute("status",status);
+        model.addAttribute("returnContext",new EmployeeReturn(keyword==null?"":keyword.trim(),null,status,result.page(),result.pageSize()));
         List<Map<String,Object>> positionOptions=u.isManager()?departments.positionsByDepartment(u.departmentId()).stream().filter(p->((Number)p.get("is_manager_position")).intValue()==0).toList():List.of();
         model.addAttribute("departments",departmentOptions);model.addAttribute("positions",positionOptions);model.addAttribute("keyword",keyword);return "employees";
     }

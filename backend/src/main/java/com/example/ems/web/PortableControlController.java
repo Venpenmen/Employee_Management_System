@@ -39,7 +39,7 @@ public class PortableControlController {
     public ResponseEntity<?> status(HttpServletRequest request) {
         if (!authorized(request)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         return ResponseEntity.status(ready && !closing.get() ? HttpStatus.OK : HttpStatus.SERVICE_UNAVAILABLE)
-                .body(Map.of("pid", ProcessHandle.current().pid(), "version", "1.2.1"));
+                .body(Map.of("pid", ProcessHandle.current().pid(), "version", "1.2.2"));
     }
 
     @PostMapping("/stop")

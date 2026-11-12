@@ -47,7 +47,7 @@ public final class CompatibilityArchive {
    JsonNode manifest=Snapshot.inspect(snapshot,stage);
    if(!BackupVersionCatalog.identify(manifest).id().equals("canonical-121"))throw new IllegalArgumentException("Compatibility export requires the registered current archive projection");
    if(manifest.path("schemaVersion").asInt()!=3)throw new IllegalArgumentException("P1 requires a validated current-schema snapshot");
-   if(!manifest.path("tables").isObject()||manifest.path("tables").size()!=Schema.TABLES.size())throw new IllegalArgumentException("P1 requires complete persistent tables");
+   if(!manifest.path("tables").isObject()||manifest.path("tables").size()!=CompatibilityCatalog.profile("canonical-121").tables().size())throw new IllegalArgumentException("P1 requires complete persistent tables");
    try(var parser=Snapshot.JSON.getFactory().createParser(stage.resolve("tables/account_security.json").toFile())){
     if(parser.nextToken()!=com.fasterxml.jackson.core.JsonToken.START_ARRAY)throw new IllegalArgumentException("Invalid security records");
     while(parser.nextToken()!=com.fasterxml.jackson.core.JsonToken.END_ARRAY){JsonNode row=Snapshot.JSON.readTree(parser);if(row==null)throw new IllegalArgumentException("Invalid security records");if(row.path("frozen").asInt()!=0||!"NORMAL".equals(row.path("temporary_state").asText()))throw new IllegalArgumentException("Compatibility export blocked by frozen or temporary-password accounts");}

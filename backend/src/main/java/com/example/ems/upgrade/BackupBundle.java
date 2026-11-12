@@ -33,7 +33,7 @@ final class BackupBundle {
   try {
    String hash=sha256(backup);
    long size=Files.size(backup);
-   String manifest="{\n  \"format\": \"EMS-BACKUP-BUNDLE-1\",\n  \"emsVersion\": \"1.2.1\",\n  \"createdAt\": \""+Instant.now()+"\",\n  \"backupFile\": \"backup.emsbk\",\n  \"backupBytes\": "+size+"\n}\n";
+   String manifest="{\n  \"format\": \"EMS-BACKUP-BUNDLE-1\",\n  \"emsVersion\": \"1.2.2\",\n  \"createdAt\": \""+Instant.now()+"\",\n  \"backupFile\": \"backup.emsbk\",\n  \"backupBytes\": "+size+"\n}\n";
    byte[] manifestBytes=manifest.getBytes(StandardCharsets.UTF_8);
    String checksums=hash+"  backup.emsbk\n"+sha256(manifestBytes)+"  manifest.json\n";
    String readme="EMS encrypted database backup bundle\r\n\r\n"+

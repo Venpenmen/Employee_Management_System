@@ -12,6 +12,8 @@ import java.util.Map;
 @Service
 public class DepartmentService {
     @org.springframework.beans.factory.annotation.Autowired private SessionService sessions;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    private com.example.ems.communications.CommunicationOrganizationService communications;
     private void guard(Long id,int role){if(sessions==null)throw new IllegalStateException("Session protection is not configured");sessions.guardCurrent(id,role);}
     private final JdbcTemplate jdbc;
     private final LogService logService;
@@ -47,6 +49,7 @@ public class DepartmentService {
         requireText(name,"部门名称不能为空"); requireMoney(salary,"基础工资不能为负数");
         jdbc.update("INSERT INTO department(department_name,base_salary,status,description) VALUES(?,?,0,?)",name.trim(),salary,description);
         Long id=jdbc.queryForObject("SELECT id FROM department WHERE department_name=?",Long.class,name.trim());
+        if(communications!=null) communications.ensureDepartmentGroup(id);
         logService.log(operatorId,"CREATE_DEPARTMENT","DEPARTMENT",id,"创建部门："+name.trim());
     }
     @Transactional
@@ -64,6 +67,7 @@ public class DepartmentService {
         Integer duplicate=jdbc.queryForObject("SELECT COUNT(*) FROM department WHERE department_name=? AND id<>?",Integer.class,name.trim(),id);
         if(duplicate!=null&&duplicate>0) throw new IllegalArgumentException("部门名称已经存在");
         if(jdbc.update("UPDATE department SET department_name=?,base_salary=?,description=? WHERE id=?",name.trim(),salary,description,id)==0) throw new IllegalArgumentException("部门不存在");
+        if(communications!=null) communications.renameDepartment(id,name.trim());
         logService.log(operatorId,"UPDATE_DEPARTMENT","DEPARTMENT",id,"修改部门："+name.trim());
     }
     @Transactional
@@ -87,6 +91,7 @@ public class DepartmentService {
         }
         jdbc.update("UPDATE department SET status=2,manager_id=NULL WHERE id=?",id);
         jdbc.update("UPDATE position_info SET status=0 WHERE department_id=?",id);
+        if(communications!=null) communications.archiveDepartment(id,managerId);
         logService.log(operatorId,"DISSOLVE_DEPARTMENT","DEPARTMENT",id,"解散部门："+d.get("department_name")+"；原经理已撤职并转为未分配员工");
     }
     @Transactional
@@ -142,6 +147,7 @@ public class DepartmentService {
             jdbc.update("INSERT INTO leave_approval_record(leave_request_id,approver_id,action,before_status,after_status,opinion) VALUES(?,?,'TRANSFER',1,1,'经理任命后自动转交高层')",pending.get("id"),operatorId);
         }
         jdbc.update("UPDATE department SET manager_id=?,status=1 WHERE id=?",employeeId,departmentId);
+        if(communications!=null) communications.synchronizeDepartmentManagers(departmentId,oldManager,employeeId);
         if(oldManager!=null&&!oldManager.equals(employeeId)){
             jdbc.update("""
                 UPDATE leave_request l JOIN employee e ON e.id=l.employee_id
