@@ -2,17 +2,19 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <body>
 <header th:fragment="nav" class="topbar">
-  <a class="brand" href="/dashboard">EMS 员工管理系统 <small>V1.2.1</small></a>
+  <a class="brand" href="/dashboard">EMS 员工管理系统 <small>V1.2.2</small></a>
+  <button id="mobile-nav-toggle" class="mobile-nav-toggle" type="button" aria-label="展开主导航" aria-controls="main-nav" aria-expanded="false">☰ <span>菜单</span></button>
   <nav id="main-nav" class="main-nav" aria-label="主导航">
     <a class="nav-link" href="/dashboard">首页</a>
     <a class="nav-link" href="/employees">员工</a>
+    <a class="nav-link" href="/communications">通讯</a>
     <div class="nav-group">
       <button class="nav-dropdown-toggle" type="button" aria-expanded="false">考勤与请假 <span aria-hidden="true">▾</span></button>
       <div class="nav-menu">
         <a href="/attendance/my">我的考勤</a>
-        <a href="/leaves/my">请假管理</a>
-        <a href="/leaves/approvals" th:if="${currentUser.isManager() or currentUser.isExecutive()}">待我审批</a>
         <a href="/attendance/manage" th:if="${currentUser.isManager() or currentUser.isExecutive()}">考勤管理</a>
+        <a href="/leaves/my">我的请假</a>
+        <a href="/leaves/approvals" th:if="${currentUser.isManager() or currentUser.isExecutive()}">请假管理</a>
       </div>
     </div>
     <div class="nav-group" th:if="${currentUser.isExecutive()}">
@@ -33,6 +35,17 @@
       </div>
     </div>
   </nav>
+  <div id="ems-notification-center" class="notification-center">
+    <button id="notification-toggle" class="notification-toggle" type="button"
+            aria-label="通知中心" aria-controls="notification-panel" aria-expanded="false">
+      <span aria-hidden="true">🔔</span><span id="notification-count" class="notification-count" hidden>0</span>
+    </button>
+    <div id="notification-panel" class="notification-panel" hidden>
+      <div class="notification-panel-head"><strong>通知中心</strong><a href="/communications">查看通讯</a></div>
+      <div id="notification-items" class="notification-items" aria-live="polite"></div>
+      <p id="notification-status" class="notification-status" role="status">正在加载通知…</p>
+    </div>
+  </div>
   <div class="nav-group user-menu">
     <button class="nav-dropdown-toggle user-toggle" type="button" aria-expanded="false">
       <span class="user-name" th:text="${currentUser.name()}"></span>
@@ -47,6 +60,7 @@
     </div>
   </div>
   <script src="/js/security-events.js" defer></script>
+  <script src="/js/notification-center.js" defer></script>
   <script>
     (() => {
       const header = document.currentScript.closest('.topbar');
@@ -76,6 +90,20 @@
       document.addEventListener('keydown', event => {
         if (event.key === 'Escape') {
           closeMenus();
+          header.classList.remove('mobile-nav-open');
+          header.querySelector('#mobile-nav-toggle')?.setAttribute('aria-expanded', 'false');
+        }
+      });
+      const mobileToggle = header.querySelector('#mobile-nav-toggle');
+      mobileToggle.addEventListener('click', () => {
+        const open = !header.classList.contains('mobile-nav-open');
+        header.classList.toggle('mobile-nav-open', open);
+        mobileToggle.setAttribute('aria-expanded', String(open));
+      });
+      header.querySelector('#main-nav').addEventListener('click', event => {
+        if (event.target.closest('a[href]')) {
+          header.classList.remove('mobile-nav-open');
+          mobileToggle.setAttribute('aria-expanded', 'false');
         }
       });
       const path = window.location.pathname;
@@ -95,5 +123,101 @@
   </script>
 </header>
 <div th:fragment="messages"><div class="alert success" th:if="${success}" th:text="${success}"></div><div class="alert error" th:if="${error}" th:text="${error}"></div></div>
+<section th:fragment="announcementCenter(homeDefault)" id="announcement-center" class="announcement-center panel" th:attr="data-home-default=${homeDefault}">
+  <input id="announcement-csrf" type="hidden" th:value="${profileCsrf}">
+  <div class="section-head announcement-heading">
+    <div>
+      <h2>公告中心</h2>
+      <p id="announcement-status-message" class="muted" role="status" hidden></p>
+      <button id="announcement-retry" class="small" type="button" hidden>重新加载公告</button>
+    </div>
+    <button id="new-announcement" class="small primary" type="button" th:if="${currentUser.isManager() or currentUser.isExecutive()}">新建公告</button>
+  </div>
+  <div class="announcement-workspace">
+    <aside class="announcement-sidebar">
+      <div class="comm-tabs compact" aria-label="公告范围">
+        <button class="active" type="button" data-ann-mode="inbox">接收公告</button>
+        <button type="button" data-ann-mode="mine">我创建的</button>
+        <button type="button" data-ann-mode="manage" th:if="${currentUser.isManager() or currentUser.isExecutive()}">公告管理</button>
+      </div>
+      <div class="announcement-filter">
+        <input id="announcement-search" type="search" placeholder="搜索标题或正文" aria-label="搜索公告">
+        <select id="announcement-status" aria-label="公告状态" hidden>
+          <option value="">全部状态</option>
+          <option value="draft">草稿</option>
+          <option value="published">已发布</option>
+          <option value="recalled">已撤回</option>
+          <option value="archived">已归档</option>
+        </select>
+      </div>
+      <div id="announcement-loading" class="loading-state" hidden>正在加载公告…</div>
+      <div id="announcement-list" class="announcement-list" aria-live="polite"></div>
+    </aside>
+    <section class="announcement-main">
+      <div id="announcement-empty" class="empty">正在加载最新公告…</div>
+      <article id="announcement-detail" hidden>
+        <div class="announcement-title-row">
+          <div>
+            <div class="announcement-badges">
+              <span id="announcement-category" class="tag"></span>
+              <span id="announcement-pin" class="tag pin-tag" hidden>置顶</span>
+            </div>
+            <h2 id="announcement-title"></h2>
+            <p id="announcement-meta" class="muted"></p>
+          </div>
+          <div id="announcement-actions" class="page-actions"></div>
+        </div>
+        <div id="announcement-body" class="announcement-body"></div>
+        <div id="announcement-attachments" class="attachment-list"></div>
+        <div id="announcement-confirm" class="notice" hidden>
+          <p>该公告要求确认回执。</p>
+          <button id="announcement-confirm-button" class="primary" type="button">我已阅读并确认</button>
+        </div>
+        <section id="announcement-stats" class="top-gap" hidden>
+          <h3>阅读与确认统计</h3>
+          <div id="announcement-stats-summary" class="stats"></div>
+          <div id="announcement-stats-people" class="table-wrap"></div>
+        </section>
+        <section id="announcement-history" class="top-gap" hidden>
+          <h3>版本与交接历史</h3>
+          <div id="announcement-history-list"></div>
+        </section>
+      </article>
+    </section>
+  </div>
+</section>
+<dialog th:fragment="announcementEditor" id="announcement-editor-dialog" class="announcement-editor-dialog">
+  <form id="announcement-form" enctype="multipart/form-data">
+    <input id="announcement-edit-id" name="id" type="hidden">
+    <h2 id="announcement-editor-title">新建公告</h2>
+    <div class="grid-form">
+      <label class="full-row">标题<input name="title" maxlength="120" required></label>
+      <label>分类<input name="category" maxlength="40" value="通知" required></label>
+      <label>接收范围<select id="announcement-scope" name="scopeType">
+        <option value="all">全员</option>
+        <option value="departments">指定部门</option>
+        <option value="employees">指定员工</option>
+      </select></label>
+      <label class="check"><input id="announcement-ack" name="requiresAck" type="checkbox" value="true"> 需要确认回执</label>
+      <label id="announcement-departments-wrap" class="full-row" hidden>指定部门<select id="announcement-departments" name="departmentIds" multiple size="5"></select></label>
+      <label id="announcement-employees-wrap" class="full-row" hidden>指定员工<select id="announcement-employees" name="employeeIds" multiple size="7"></select></label>
+    </div>
+    <div class="rich-toolbar" role="toolbar" aria-label="正文格式">
+      <button type="button" data-command="bold"><b>B</b></button>
+      <button type="button" data-command="italic"><i>I</i></button>
+      <button type="button" data-command="underline"><u>U</u></button>
+      <button type="button" data-command="insertUnorderedList">• 列表</button>
+      <button type="button" data-command="insertOrderedList">1. 列表</button>
+    </div>
+    <div id="announcement-editor" class="rich-editor" contenteditable="true" role="textbox" aria-multiline="true"></div>
+    <input id="announcement-body-json" name="bodyJson" type="hidden">
+    <label>附件<input id="announcement-files" name="files" type="file" multiple accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip"></label>
+    <div id="announcement-existing-files" class="attachment-list"></div>
+    <div class="dialog-actions">
+      <button type="button" data-close-dialog>取消</button>
+      <button id="announcement-save-draft" class="primary" type="submit">保存草稿</button>
+    </div>
+  </form>
+</dialog>
 </body>
 </html>

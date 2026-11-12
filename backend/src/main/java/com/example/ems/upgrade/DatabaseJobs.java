@@ -10,7 +10,7 @@ import java.nio.file.*;import java.util.*;import java.util.concurrent.*;import j
  public String namespace(){return rc2()?"complete-rc2":"complete";}
  public Path directory(){return root().resolve("data/"+namespace()+"/"+mode());}
  public Path root(){
-  String marker=rc2()?"app/version-complete-rc2.json":"app/version-complete.json",build=rc2()?"v1.2.1-complete-rc2":"v1.2.1-complete-rc1";
+  String marker=rc2()?"app/version-complete-rc2.json":"app/version-complete.json",build=rc2()?"v1.2.2-local":"v1.2.1-complete-rc1";
   String configured=System.getenv("EMS_UPGRADE_ROOT");Path root=Path.of(configured==null?System.getProperty("user.dir"):configured).toAbsolutePath().normalize();
   if(!Files.exists(root.resolve(marker))&&Files.exists(root.resolve("../"+marker)))root=root.getParent();
   try{if(!Snapshot.JSON.readTree(root.resolve(marker).toFile()).path("buildId").asText().equals(build))throw new IllegalStateException();}catch(Exception e){throw new IllegalStateException("数据库管理需要本修正版独立安装上下文");}

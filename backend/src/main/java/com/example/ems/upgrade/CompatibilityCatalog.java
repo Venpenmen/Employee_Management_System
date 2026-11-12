@@ -19,6 +19,12 @@ public final class CompatibilityCatalog {
   var current=new LinkedHashMap<>(profile("canonical-120").tables());current.putAll(read("/db/upgrade/V3__account_security.sql"));current.remove("security_grant");
   var ephemeral=new LinkedHashMap<>(profile("canonical-120").ephemeralTables());ephemeral.put("security_grant",read("/db/upgrade/V3__account_security.sql").get("security_grant"));
   PROFILES.put("canonical-121",new Profile("canonical-121","1.2.1",3,Collections.unmodifiableMap(current),Collections.unmodifiableMap(ephemeral)));
+  var current122=new LinkedHashMap<>(profile("canonical-121").tables());current122.putAll(read("/db/upgrade/V4__communications.sql"));
+  PROFILES.put("canonical-122",new Profile("canonical-122","1.2.2",4,Collections.unmodifiableMap(current122),profile("canonical-121").ephemeralTables()));
+  var current122handover=new LinkedHashMap<>(current122);current122handover.putAll(read("/db/upgrade/V5__announcement_handover.sql"));
+  PROFILES.put("canonical-122-handover",new Profile("canonical-122-handover","1.2.2",5,Collections.unmodifiableMap(current122handover),profile("canonical-121").ephemeralTables()));
+  var attendance=new LinkedHashMap<>(current122handover);attendance.putAll(read("/db/upgrade/V6__attendance_workflow.sql"));
+  PROFILES.put("canonical-122-attendance",new Profile("canonical-122-attendance","1.2.2",6,Collections.unmodifiableMap(attendance),profile("canonical-121").ephemeralTables()));
  }
  private CompatibilityCatalog(){}
  static String primary(String table){return table.equals("employee_profile")||table.equals("account_active_session")?"employee_id":"id";}
@@ -47,7 +53,7 @@ public final class CompatibilityCatalog {
     String name=tables.group(1),body=tables.group(2);var shape=SchemaRegistry.REGISTERED.get(resource).get(name);var columns=new LinkedHashMap<String,Column>();
     // These descriptors target the pinned MySQL8 runtime, whose utf8mb4 default is 0900_ai_ci.
     String tableCollation="utf8mb4_0900_ai_ci";var tableCollationMatch=Pattern.compile("COLLATE\\s*=?\\s*([a-z0-9_]+)",Pattern.CASE_INSENSITIVE).matcher(tables.group(4));if(tableCollationMatch.find())tableCollation=tableCollationMatch.group(1).toLowerCase(Locale.ROOT);
-    var fields=Pattern.compile("(?:^|,)\\s*([a-z_]+)\\s+((?:BIGINT|INT|TINYINT|VARCHAR|CHAR|DECIMAL|DATETIME|DATE|TIME|TEXT)(?:\\(\\d+(?:\\s*,\\s*\\d+)?\\))?)([^,\\n]*)",Pattern.CASE_INSENSITIVE|Pattern.MULTILINE).matcher(body);
+    var fields=Pattern.compile("(?:^|,)\\s*([a-z_][a-z0-9_]*)\\s+((?:BIGINT|INT|TINYINT|VARCHAR|CHAR|DECIMAL|DATETIME|DATE|TIME|TEXT)(?:\\(\\d+(?:\\s*,\\s*\\d+)?\\))?)([^,\\n]*)",Pattern.CASE_INSENSITIVE|Pattern.MULTILINE).matcher(body);
     while(fields.find()){
      String column=fields.group(1),type=shape.columns().get(column),flags=fields.group(3).split("(?i)COMMENT",2)[0];
      var d=Pattern.compile("\\bDEFAULT\\s+('(?:''|[^'])*'|CURRENT_TIMESTAMP(?:\\(\\d*\\))?|NULL|-?\\d+(?:\\.\\d+)?)",Pattern.CASE_INSENSITIVE).matcher(flags);
@@ -101,7 +107,7 @@ public final class CompatibilityCatalog {
   if(legacy.size()!=1)throw new IllegalArgumentException("Ambiguous unversioned structure; verified source program identity required");return legacy.get(0);
  }
  static Map<String,Table> combined(Profile profile){var all=new LinkedHashMap<>(profile.tables());all.putAll(profile.ephemeralTables());return all;}
- static final List<String> MIGRATIONS=List.of("V1__canonical_business_schema.sql","V2__active_sessions.sql","V3__account_security.sql");
+ static final List<String> MIGRATIONS=List.of("V1__canonical_business_schema.sql","V2__active_sessions.sql","V3__account_security.sql","V4__communications.sql","V5__announcement_handover.sql","V6__attendance_workflow.sql");
  static int migrationChecksum(String script){
   if(!MIGRATIONS.contains(script))throw new IllegalArgumentException("Unregistered migration");
   var checksum=new java.util.zip.CRC32();

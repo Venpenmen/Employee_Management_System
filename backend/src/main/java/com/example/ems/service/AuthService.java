@@ -66,7 +66,7 @@ public class AuthService {
         if (!phone.matches("^1[3-9]\\d{9}$")) throw new IllegalArgumentException("请输入正确的十一位手机号");
         if (password == null || password.length() < 8 || password.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 72 || !password.matches(".*[A-Za-z].*") || !password.matches(".*\\d.*"))
             throw new IllegalArgumentException("密码至少8位、最多72字节，且必须包含字母和数字");
-        List<Map<String, Object>> rows = jdbc.queryForList("SELECT id,name,identity_number,employment_status FROM employee WHERE employee_no=?", employeeNo);
+        List<Map<String, Object>> rows = jdbc.queryForList("SELECT id,name,identity_number,employment_status,department_id FROM employee WHERE employee_no=?", employeeNo);
         if (rows.isEmpty()) throw new IllegalArgumentException("工号不存在，请确认已由高层招聘");
         Map<String, Object> row = rows.get(0);
         if (((Number) row.get("employment_status")).intValue() != 0) throw new IllegalArgumentException("该工号不是待注册状态");
@@ -78,10 +78,13 @@ public class AuthService {
         Long id = ((Number) row.get("id")).longValue();
         jdbc.update("UPDATE employee SET phone=?,employment_status=1 WHERE id=?", phone, id);
         jdbc.update("INSERT INTO user_account(employee_id,password_hash) VALUES(?,?)", id, encoder.encode(password));
+        if (communications != null) communications.synchronizeEmployee(id);
         logService.log(id, "REGISTER", "EMPLOYEE", id, "员工完成账户注册");
     }
 
     @org.springframework.beans.factory.annotation.Autowired private SessionService sessions;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    private com.example.ems.communications.CommunicationOrganizationService communications;
     public void changePassword(Long id,String oldPassword,String newPassword) {
         sessions.changePassword(id,oldPassword,newPassword,logService);
     }

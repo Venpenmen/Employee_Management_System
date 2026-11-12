@@ -1,1 +1,156 @@
-<!DOCTYPE html><html lang="zh-CN" xmlns:th="http://www.thymeleaf.org"><head><meta charset="UTF-8"><title>待我审批</title><link rel="stylesheet" href="/css/app.css"></head><body><header th:replace="~{fragments :: nav}"></header><main class="container"><div th:replace="~{fragments :: messages}"></div><div class="page-head"><div><h1>待我审批</h1><p>只能处理系统分配给您的待审批申请，不能审批自己的申请。</p></div></div><section class="panel"><div class="table-wrap"><table><thead><tr><th>申请编号</th><th>申请人</th><th>部门</th><th>类型</th><th>开始</th><th>结束</th><th>时长</th><th>原因</th><th>操作</th></tr></thead><tbody><tr th:each="r:${requests}"><td th:text="${r.request_no}"></td><td th:text="${r.name+'（'+r.employee_no+'）'}"></td><td th:text="${r.department_name?:'未分配'}"></td><td th:text="${r.leave_type_label?:r.leave_type}"></td><td th:text="${@viewFormats.dateTime(r.start_time)}"></td><td th:text="${@viewFormats.dateTime(r.end_time)}"></td><td th:text="${r.leave_hours+' 小时'}"></td><td class="wrap" th:text="${r.reason}"></td><td><button class="small primary" type="button" th:attr="onclick=|document.getElementById('approve-${r.request_no}').showModal()|">审批</button></td></tr><tr th:if="${#lists.isEmpty(requests)}"><td colspan="9" class="empty">目前没有待审批申请</td></tr></tbody></table></div></section><dialog th:each="r:${requests}" th:id="${'approve-'+r.request_no}"><h2 th:text="${'审批：'+r.name+'（'+r.employee_no+'）'}"></h2><p th:text="${r.reason}"></p><form method="post" th:action="@{'/leaves/'+${r.request_no}+'/approve'}"><input type="hidden" name="_csrf" th:value="${profileCsrf}"><label>审批意见（通过时可不填）<textarea name="opinion" maxlength="500"></textarea></label><div class="dialog-actions"><button type="button" onclick="this.closest('dialog').close()">取消</button><button class="primary">通过</button></div></form><form method="post" th:action="@{'/leaves/'+${r.request_no}+'/reject'}"><input type="hidden" name="_csrf" th:value="${profileCsrf}"><label>驳回意见（必填）<textarea name="opinion" maxlength="500" required></textarea></label><div class="dialog-actions"><button class="danger">驳回</button></div></form></dialog></main></body></html>
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>请假管理</title>
+  <link rel="stylesheet" href="/css/app.css">
+  <style>
+    .leave-filter {display:flex;flex-wrap:wrap;gap:14px;align-items:end}
+    .leave-filter > label {display:flex;flex-direction:column;gap:6px;min-width:140px;flex:1}
+    .leave-filter input,.leave-filter select {max-width:100%;box-sizing:border-box}
+    .leave-statuses {display:flex;flex-wrap:wrap;gap:12px 22px;align-items:center;margin:14px 0}
+    .leave-statuses label {display:inline-flex;gap:6px;align-items:center;white-space:nowrap;cursor:pointer}
+    .leave-record-detail {max-width:100%;white-space:normal}
+    .leave-record-detail summary {display:inline-block}
+    .leave-action-cell {white-space:nowrap}
+    .leave-action-cell .small {margin-right:8px}
+    .leave-time-range {min-width:145px;line-height:1.6}
+    .leave-expanded {background:#f8faff}
+    .leave-expanded .leave-record-detail {padding:10px 12px}
+    .leave-expanded p {margin:7px 0}
+    .leave-record-detail summary {cursor:pointer;color:#2859a6}
+    .leave-history {margin-top:10px;font-size:.92em}
+    .leave-history li {margin:5px 0}
+    .leave-pagination {display:flex;align-items:center;justify-content:flex-end;gap:14px;flex-wrap:wrap;margin-top:16px}
+    .leave-approval-dialog {max-width:min(520px,95vw);border:1px solid #d8dfeb;border-radius:12px;padding:22px}
+    .leave-approval-dialog form {margin:12px 0}
+    .leave-approval-dialog textarea {width:100%;box-sizing:border-box;min-height:68px}
+    .leave-approval-dialog::backdrop {background:rgba(12,24,42,.55)}
+  </style>
+</head>
+<body>
+<header th:replace="~{fragments :: nav}"></header>
+<main class="container">
+  <div th:replace="~{fragments :: messages}"></div>
+  <div class="page-head"><div>
+    <h1>请假管理</h1>
+    <p>查看管理范围内的请假申请与审批历史。审批操作仅限当前审批人。</p>
+  </div></div>
+  <section class="panel">
+    <h2>筛选请假记录</h2>
+    <form method="get" action="/leaves/approvals" id="leave-filter">
+      <input type="hidden" name="statusSelection" value="1">
+      <input type="hidden" id="leave-page" name="page" value="1">
+      <div class="leave-filter">
+        <label>姓名或工号
+          <input type="search" name="q" th:value="${keyword}" maxlength="80" placeholder="输入姓名或工号">
+        </label>
+        <label th:if="${currentUser.isExecutive()}">部门
+          <select name="department">
+            <option value="">全部部门</option>
+            <option th:each="d:${departments}" th:value="${d.id}" th:text="${d.department_name}"
+                    th:selected="${selectedDepartment != null and selectedDepartment == d.id}"></option>
+          </select>
+        </label>
+        <label>请假日期起
+          <input type="date" name="from" th:value="${fromDate}">
+        </label>
+        <label>请假日期止
+          <input type="date" name="to" th:value="${toDate}">
+        </label>
+      </div>
+      <div class="leave-statuses" role="group" aria-label="申请状态">
+        <strong>状态：</strong>
+        <label><input type="checkbox" name="status" value="1" th:checked="${statuses.contains(1)}">待审批</label>
+        <label><input type="checkbox" name="status" value="2" th:checked="${statuses.contains(2)}">已通过</label>
+        <label><input type="checkbox" name="status" value="3" th:checked="${statuses.contains(3)}">已驳回</label>
+        <label><input type="checkbox" name="status" value="4" th:checked="${statuses.contains(4)}">已撤回</label>
+      </div>
+      <div class="form-actions">
+        <button class="primary" type="submit">查询</button>
+        <a class="button" href="/leaves/approvals">重置筛选</a>
+      </div>
+    </form>
+    <p class="muted" th:if="${currentUser.isManager()}">经理仅可查看当前归属本部门的员工请假记录；员工调岗前的历史部门未单独保存。</p>
+  </section>
+  <section class="panel">
+    <div class="section-head">
+      <h2>请假记录</h2>
+      <span class="muted" th:text="|共 ${total} 条记录|">共 0 条记录</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>员工</th><th>部门</th><th>请假类型</th><th>请假时间</th>
+          <th>时长</th><th>提交时间</th><th>审批时间</th><th>状态</th><th>操作</th>
+        </tr></thead>
+        <tbody>
+          <tr th:each="r:${requests}">
+            <td th:text="|${r.name}（${r.employee_no}）|"></td>
+            <td th:text="${r.department_name ?: '未分配'}"></td>
+            <td th:text="${r.leave_type_label ?: r.leave_type}"></td>
+            <td class="leave-time-range"><span th:text="${@viewFormats.dateTime(r.start_time)}"></span><span> ～ </span><span th:text="${@viewFormats.dateTime(r.end_time)}"></span></td>
+            <td th:text="|${r.leave_hours} 小时|"></td>
+            <td th:text="${@viewFormats.dateTime(r.submit_time)}"></td>
+            <td th:text="${r.approval_time == null ? '—' : @viewFormats.dateTime(r.approval_time)}"></td>
+            <td><span class="tag" th:text="${r.status==1?'待审批':(r.status==2?'已通过':(r.status==3?'已驳回':(r.status==4?'已撤回':'已取消')))}"></span></td>
+            <td class="leave-action-cell">
+              <button class="small primary" type="button" th:if="${r.can_approve}"
+                      th:attr="onclick=|document.getElementById('approve-${r.request_no}').showModal()|">审批</button>
+              <details class="leave-record-detail">
+                <summary>详情</summary>
+                <p><strong>申请编号：</strong><span th:text="${r.request_no}"></span></p>
+                <p><strong>请假原因：</strong><span th:text="${r.reason}"></span></p>
+                <p><strong>提交时间：</strong><span th:text="${@viewFormats.dateTime(r.submit_time)}"></span></p>
+                <p th:if="${r.finish_time != null}"><strong>完成时间：</strong><span th:text="${@viewFormats.dateTime(r.finish_time)}"></span></p>
+                <strong>流转记录：</strong>
+                <ol class="leave-history">
+                  <li th:each="h:${r.history}">
+                    <span th:text="${h.action=='SUBMIT'?'提交申请':(h.action=='APPROVE'?'审批通过':(h.action=='REJECT'?'审批驳回':(h.action=='WITHDRAW'?'申请撤回':h.action)))}"></span>
+                    · <span th:text="${h.approver_name ?: h.approver_no ?: '系统'}"></span>
+                    · <span th:text="${@viewFormats.dateTime(h.action_time)}"></span>
+                    <span th:if="${h.opinion != null and !#strings.isEmpty(h.opinion)}" th:text="| · ${h.opinion}|"></span>
+                  </li>
+                  <li th:if="${#lists.isEmpty(r.history)}">暂无审批流转记录</li>
+                </ol>
+              </details>
+            </td>
+          </tr>
+          <tr th:if="${#lists.isEmpty(requests)}"><td colspan="9" class="empty">没有符合条件的请假记录</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="leave-pagination">
+      <button type="button" th:disabled="${page <= 1}"
+              th:attr="onclick=|document.getElementById('leave-page').value=${page - 1};document.getElementById('leave-filter').submit()|">上一页</button>
+      <span th:text="|第 ${page} / ${pages} 页|"></span>
+      <button type="button" th:disabled="${page >= pages}"
+              th:attr="onclick=|document.getElementById('leave-page').value=${page + 1};document.getElementById('leave-filter').submit()|">下一页</button>
+    </div>
+  </section>
+  <dialog class="leave-approval-dialog" th:each="r:${requests}" th:if="${r.can_approve}"
+          th:id="${'approve-'+r.request_no}">
+    <h2 th:text="|审批 ${r.name}（${r.employee_no}）|"></h2>
+    <p th:text="${r.reason}"></p>
+    <form method="post" th:action="@{'/leaves/'+${r.request_no}+'/approve'}">
+      <input type="hidden" name="_csrf" th:value="${profileCsrf}">
+      <label>审批意见（通过时可不填）
+        <textarea name="opinion" maxlength="500"></textarea>
+      </label>
+      <div class="dialog-actions">
+        <button type="button" onclick="this.closest('dialog').close()">取消</button>
+        <button class="primary" type="submit">通过</button>
+      </div>
+    </form>
+    <form method="post" th:action="@{'/leaves/'+${r.request_no}+'/reject'}">
+      <input type="hidden" name="_csrf" th:value="${profileCsrf}">
+      <label>驳回原因（必填）
+        <textarea name="opinion" maxlength="500" required></textarea>
+      </label>
+      <div class="dialog-actions"><button class="danger" type="submit">驳回</button></div>
+    </form>
+  </dialog>
+</main>
+</body>
+</html>

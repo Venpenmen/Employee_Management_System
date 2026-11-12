@@ -1,4 +1,54 @@
-<!DOCTYPE html><html lang="zh-CN" xmlns:th="http://www.thymeleaf.org"><head><meta charset="UTF-8"><title>首页</title><link rel="stylesheet" href="/css/app.css"></head><body><header th:replace="~{fragments :: nav}"></header><main class="container"><div th:replace="~{fragments :: messages}"></div>
-<section class="hero"><div><h1 th:text="${@viewFormats.greeting()+'，'+currentUser.name()}"></h1><p th:text="${currentUser.departmentName()+' · '+currentUser.roleName()}"></p></div><a class="button" href="/employees">查看员工列表</a></section>
-<section class="panel quick-links"><a class="button" href="/profile">个人档案</a><a class="button" href="/attendance/my">我的考勤</a><a class="button" href="/my-salaries">我的工资条</a><a class="button" href="/leaves/approvals" th:if="${currentUser.isManager() or currentUser.isExecutive()}" th:text="${'请假审批 · 待我审批 '+approverPendingCount+' 条'}"></a></section><section class="stats"><div class="stat"><b th:text="${employeeCount}">0</b><span>在职员工</span></div><div class="stat"><b th:text="${departmentCount}">0</b><span>有效部门</span></div><div class="stat" th:if="${currentUser.isExecutive()}"><b th:text="${pendingCount}">0</b><span>待注册员工</span></div></section>
-<section class="panel"><h2>部门概览</h2><div class="cards"><article class="dept" th:each="d:${departments}"><h3 th:text="${d.department_name}"></h3><p><span>经理</span><b th:text="${d.manager_name?:'待任命'}"></b></p><p><span>人数</span><b th:text="${d.employee_count}"></b></p><p th:if="${currentUser.isExecutive()}"><span>基础工资</span><b th:text="${@viewFormats.money(d.base_salary)}"></b></p></article></div></section></main></body></html>
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="ems-csrf" th:content="${profileCsrf}">
+  <title>首页</title>
+  <link rel="stylesheet" href="/css/app.css">
+  <link rel="stylesheet" href="/css/announcements.css">
+  <link rel="stylesheet" href="/css/home-action-items.css">
+</head>
+<body th:attr="data-user-id=${currentUser.id()},data-role=${currentUser.userType()},data-department-id=${currentUser.departmentId()},data-department-name=${currentUser.departmentName()}">
+<header th:replace="~{fragments :: nav}"></header>
+<main class="container">
+  <div th:replace="~{fragments :: messages}"></div>
+  <section class="hero">
+    <div>
+      <h1 th:text="${@viewFormats.greeting()+'，'+currentUser.name()}"></h1>
+      <p th:text="${currentUser.departmentName()+' · '+currentUser.roleName()}"></p>
+    </div>
+    <a class="button" href="/employees">查看员工列表</a>
+  </section>
+  <section class="panel quick-links">
+    <a class="button" href="/communications" th:text="${'通讯 · 未读 '+communicationUnread}"></a>
+    <a class="button" href="/profile">个人档案</a>
+    <a class="button" href="/attendance/my">我的考勤</a>
+    <a class="button" href="/my-salaries">我的工资条</a>
+    <a class="button" href="/leaves/approvals?statusSelection=1&amp;status=1" th:if="${currentUser.isManager() or currentUser.isExecutive()}" th:text="${'请假审批 · 待我审批 '+approverPendingCount+' 条'}"></a>
+  </section>
+  <div id="home-action-items" aria-live="polite" hidden></div>
+  <section th:replace="~{fragments :: announcementCenter(true)}"></section>
+  <dialog th:replace="~{fragments :: announcementEditor}"></dialog>
+  <section class="stats">
+    <div class="stat"><b th:text="${employeeCount}">0</b><span>在职员工</span></div>
+    <div class="stat"><b th:text="${departmentCount}">0</b><span>有效部门</span></div>
+    <div class="stat" th:if="${currentUser.isExecutive()}"><b th:text="${pendingCount}">0</b><span>待注册员工</span></div>
+  </section>
+  <section class="panel">
+    <h2>部门概览</h2>
+    <div class="cards">
+      <article class="dept" th:each="d:${departments}">
+        <h3 th:text="${d.department_name}"></h3>
+        <p><span>经理</span><b th:text="${d.manager_name?:'待任命'}"></b></p>
+        <p><span>人数</span><b th:text="${d.employee_count}"></b></p>
+        <p th:if="${currentUser.isExecutive()}"><span>基础工资</span><b th:text="${@viewFormats.money(d.base_salary)}"></b></p>
+      </article>
+    </div>
+  </section>
+</main>
+<script src="/js/communications-common.js" defer></script>
+<script src="/js/announcements.js" defer></script>
+<script src="/js/home-action-items.js" defer></script>
+</body>
+</html>

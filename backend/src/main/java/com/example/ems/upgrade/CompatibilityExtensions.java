@@ -50,7 +50,7 @@ public final class CompatibilityExtensions implements AutoCloseable {
    }
    key=Base64.getDecoder().decode(d.path("proofKey").asText());if(key.length!=32)throw new IllegalArgumentException("Invalid companion key");
    var manifest=Snapshot.inspect(workspace.resolve("snapshot.zip"),workspace.resolve("snapshot"));
-   if(manifest.path("schemaVersion").asInt()!=3||manifest.path("tables").size()!=Schema.TABLES.size())throw new IllegalArgumentException("Incomplete companion source");
+   if(manifest.path("schemaVersion").asInt()!=3||manifest.path("tables").size()!=CompatibilityCatalog.profile("canonical-121").tables().size())throw new IllegalArgumentException("Incomplete companion source");
    ready=true;return new CompatibilityExtensions(workspace,d,manifest,key);
   }finally{if(!ready){if(key!=null)Arrays.fill(key,(byte)0);MaintenanceMain.removeStaging(workspace);}}
  }

@@ -22,7 +22,7 @@ final class CompatibilityRestore {
      if(hasProof){
       JobDiagnostics.phase("lineage");var proof=LineageTracker.readEncrypted(job.resolve("return-proof.emsbk"),work.resolve("proof"),archivePassword);var verified=LineageTracker.verifyReturn(extension,job.resolve("input.emsbk"),proof);
       var plan=ExtensionReconciler.preview(extension,stage.resolve("tables"),manifest,verified,BackupCrypto.sha256(job.resolve("input.emsbk")));
-      if(plan.blocked()){write(job,manifest,profile.id(),"VERIFIED_RETURN",null,null,plan.publicSummary(),false,plan.issues().size(),true,originalInputs);return;}
+      if(plan.blocked()){write(job,manifest,profile.id(),"VERIFIED_RETURN",null,null,plan.publicSummary(),false,plan.issues().size(),true,originalInputs,null);return;}
       restore(sourceUrl,user,password,job,manifest,stage,profile.id(),"VERIFIED_RETURN",plan,false,originalInputs);
      }else{
       extension.requireOriginalBase(job.resolve("input.emsbk"));
@@ -48,14 +48,15 @@ final class CompatibilityRestore {
    // committed to the running installation until report-bound confirmation.
    if(plan!=null)restored=ExtensionReconciler.applyIsolated(target,plan,plan.previewSha256(),true,allocation);
   }
+  JobDiagnostics.phase("restore-attachments");Path attachmentStage=job.resolve("attachments-generation");Snapshot.stageAttachments(manifest,stage,attachmentStage);
   Map<String,Object> summary;
   if(plan!=null){summary=new LinkedHashMap<>(plan.publicSummary());summary.put("restoredInPreview",restored);}
   else{long extensions=0;for(String name:Schema.TABLES.subList(17,22))extensions+=manifest.path("tables").path(name).path("rows").asLong();summary=Map.of("restoredInPreview",extensions,"conflicts",Map.of(),"blocking",false);}
-  write(job,manifest,profile,mode,allocation.name(),mapping,summary,baseOnly,plan==null?0:plan.issues().size(),false,inputs);
+  write(job,manifest,profile,mode,allocation.name(),mapping,summary,baseOnly,plan==null?0:plan.issues().size(),false,inputs,attachmentStage);
  }
- private static void write(Path job,JsonNode manifest,String profile,String mode,String target,Map<String,Object> mapping,Map<String,Object> summary,boolean baseOnly,int conflicts,boolean blocking,Map<String,String> originalInputs)throws Exception{
+ private static void write(Path job,JsonNode manifest,String profile,String mode,String target,Map<String,Object> mapping,Map<String,Object> summary,boolean baseOnly,int conflicts,boolean blocking,Map<String,String> originalInputs,Path attachmentStage)throws Exception{
   if(!originalInputs.equals(ConfirmationBinding.inputHashes(job)))throw new IllegalArgumentException("校验期间输入文件发生变化，必须重新上传");
-  ObjectNode result=Snapshot.JSON.createObjectNode();if(target!=null)result.put("target",target);result.set("tables",manifest.path("tables"));result.put("state",blocking?"CONFLICTS_BLOCKING":"PREVIEW_READY");result.put("programVersion",manifest.path("programVersion").asText());result.put("schemaVersion",manifest.path("schemaVersion").asInt());result.put("identifiedProfile",profile);result.put("recoveryMode",mode);result.put("blocking",blocking);result.put("baseOnlyRequired",baseOnly);result.put("skippableConflicts",conflicts);result.set("extensions",Snapshot.JSON.valueToTree(summary));if(mapping!=null)result.set("mapping",Snapshot.JSON.valueToTree(mapping));
+  ObjectNode result=Snapshot.JSON.createObjectNode();if(target!=null)result.put("target",target);result.set("tables",manifest.path("tables"));result.put("state",blocking?"CONFLICTS_BLOCKING":"PREVIEW_READY");result.put("programVersion",manifest.path("programVersion").asText());result.put("schemaVersion",manifest.path("schemaVersion").asInt());result.put("identifiedProfile",profile);result.put("recoveryMode",mode);result.put("blocking",blocking);result.put("baseOnlyRequired",baseOnly);result.put("skippableConflicts",conflicts);result.set("extensions",Snapshot.JSON.valueToTree(summary));if(mapping!=null)result.set("mapping",Snapshot.JSON.valueToTree(mapping));if(attachmentStage!=null){result.put("attachmentGeneration",target);result.put("attachmentStage",attachmentStage.toString());}
   JobDiagnostics.phase("confirmation");Files.write(job.resolve("result.json"),Snapshot.JSON.writeValueAsBytes(result),StandardOpenOption.CREATE_NEW);ConfirmationBinding.create(job,baseOnly,conflicts,blocking,Instant.now());
  }
 }
